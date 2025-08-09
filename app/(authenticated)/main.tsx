@@ -1,4 +1,9 @@
-import { View, Pressable, ActivityIndicator } from "react-native";
+import {
+  View,
+  Pressable,
+  ActivityIndicator,
+  TouchableOpacity,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "~/components/ui/button";
 import { Text } from "~/components/ui/text";
@@ -6,11 +11,24 @@ import { H1, Large } from "~/components/ui/typography";
 import { playHaptic } from "~/lib/hapticSound";
 import { openGallery } from "~/lib/media";
 import { useEffect, useState } from "react";
-import { Image } from "react-native";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useFaceEditPresets } from "~/hooks/useFaceEditsPreset";
 import { AspectRatio } from "~/components/ui/aspect-ratio";
-import { Camera, Trash2, AlertCircle, Plus } from "lucide-react-native";
+import {
+  Camera,
+  Trash2,
+  AlertCircle,
+  Plus,
+  ChevronLeft,
+} from "lucide-react-native";
+import { showErrorToast } from "~/components/ui/toast";
+import GradientText from "~/components/GradientText";
+import LoadingIndicator from "~/components/LoadingIndicator";
+import SpinningImage from "~/components/SpinningImage";
+
+const blurhash =
+  "|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[";
 
 export default function MainApp() {
   const router = useRouter();
@@ -29,6 +47,7 @@ export default function MainApp() {
       }
     } catch (err) {
       console.warn(err);
+      showErrorToast("Error selecting photo");
     }
   };
 
@@ -41,10 +60,14 @@ export default function MainApp() {
     playHaptic("soft");
     setImageUri("");
   };
+  const handleBack = () => {
+    playHaptic("soft");
+    router.back();
+  };
 
   useEffect(() => {
     if (data) {
-      router.push({
+      router.replace({
         pathname: "/(authenticated)/show-results",
         params: {
           uri: imageUri,
@@ -54,15 +77,28 @@ export default function MainApp() {
     }
   }, [data]);
 
+  useEffect(() => {
+    if (error) showErrorToast("Please try again or select a different image");
+  }, [error]);
+
   // Image placeholder content
   const renderImageContent = () => {
     if (imageUri) {
+      console.log(imageUri);
       return (
-        <View>
+        <View className="w-full h-full">
           <Image
             source={{ uri: imageUri }}
-            className="w-full h-full rounded-xl"
-            resizeMode="contain"
+            style={{
+              width: "100%",
+              height: "100%",
+              borderRadius: 12,
+            }}
+            placeholder={{ blurhash }}
+            contentFit="contain"
+            transition={300}
+            onError={(error) => console.log("Image Error:", error)}
+            onLoad={() => console.log("Image loaded successfully")}
           />
           {/* Trash icon overlay */}
           <Pressable
@@ -95,46 +131,34 @@ export default function MainApp() {
   };
 
   return (
-    <View className="flex-1 gap-5 p-2 bg-secondary/30">
-      <SafeAreaView className="flex-1 items-center" edges={["top", "bottom"]}>
+    <View className="flex-1 relative gap-5 p-2 bg-background">
+      <SafeAreaView
+        className="flex-1 items-center justify-center"
+        edges={["top", "bottom"]}
+      >
+        <View className="w-[97%] mb-4 flex flex-row items-center">
+          <TouchableOpacity
+            className="bg-primary rounded-full p-1 mr-3"
+            onPress={handleBack}
+          >
+            <ChevronLeft />
+          </TouchableOpacity>
+          <H1 className="">Select Your Photo</H1>
+        </View>
         {/* Image Container */}
-        <Pressable
+        <TouchableOpacity
           onPress={clicked_find_photo}
           disabled={loading}
           className={`w-[98%] ${loading ? "opacity-50" : ""}`}
         >
           <AspectRatio
-            ratio={9 / 16}
-            className="bg-secondary relative rounded-xl border border-gray-300"
+            ratio={9 / 15}
+            className="relative rounded-xl border border-gray-300"
           >
             {renderImageContent()}
             {/* Loading overlay */}
-            {loading && imageUri && (
-              <View className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-xl">
-                <ActivityIndicator size="large" color="#ffffff" />
-                <Text className="text-white mt-3 font-medium">
-                  Processing your image...
-                </Text>
-              </View>
-            )}
           </AspectRatio>
-        </Pressable>
-
-        {/* Error State */}
-        {error && (
-          <View className="bg-red-50 border border-red-200 rounded-lg p-4 mx-4 mt-4">
-            <View className="flex-row items-center">
-              <AlertCircle color="#ef4444" size={20} />
-              <Text className="text-red-800 font-medium ml-2">
-                Processing Failed
-              </Text>
-            </View>
-            <Text className="text-red-700 mt-2 text-sm">{error}</Text>
-            <Text className="text-red-600 mt-1 text-xs">
-              Please try again or select a different image.
-            </Text>
-          </View>
-        )}
+        </TouchableOpacity>
 
         {/* Action Button */}
         <View className="w-full items-center mt-auto">
@@ -152,29 +176,29 @@ export default function MainApp() {
                 <Text className="ml-2">Processing...</Text>
               </View>
             ) : (
-              <Text>{imageUri ? "Reform this image!" : "Find Your Photo"}</Text>
+              <Text className="text-3xl font-extrabold tracking-widest">
+                {imageUri ? "Reform this image!" : "Find Your Photo"}
+              </Text>
             )}
           </Button>
 
           {/* Helper text */}
-          {imageUri && !loading && (
-            <Text className="text-gray-600 text-center text-sm mt-3">
-              Tap the image to change it, or the trash icon to remove it
-            </Text>
-          )}
         </View>
-
-        {/* Progress indicator */}
-        {loading && (
-          <View className="absolute bottom-20 left-0 right-0 items-center">
-            <View className="bg-white/90 backdrop-blur rounded-full px-4 py-2">
-              <Text className="text-gray-700 text-sm font-medium">
-                Creating enhanced versions...
-              </Text>
-            </View>
-          </View>
-        )}
       </SafeAreaView>
+      {loading && (
+        <View className="absolute inset-0 items-center justify-center">
+          {/* dark overlay */}
+          <View className="absolute inset-0 bg-background/30" />
+          {/* spinner + text */}
+          <View className="flex-1 items-center justify-center">
+            <SpinningImage
+              src={require("~/assets/images/ThemedLoadingTransparent.png")}
+              size={120}
+            />
+            <LoadingIndicator />
+          </View>
+        </View>
+      )}
     </View>
   );
 }

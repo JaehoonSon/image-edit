@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
 import { Button } from "~/components/ui/button";
@@ -6,11 +7,11 @@ import { TypeWriter } from "~/components/ui/type-writer";
 
 const EncouragementMessage: { text: string; speed: number }[] = [
   {
-    text: "Most people never end up achieving nothing due to lack of confidence.",
-    speed: 40,
+    text: "You’ve dimmed your light for too long—let your glow shine through.",
+    speed: 45,
   },
   {
-    text: "It's time for you to unveil the truth",
+    text: "See yourself in your best light, every time.",
     speed: 50,
   },
 ];
@@ -29,6 +30,10 @@ export default function EncouragementScreen() {
     }
   };
 
+  const handleNext = () => {
+    router.replace("/(unauthenticated)/onboarding/Spinner");
+  };
+
   return (
     <View className="flex-1 items-center justify-center">
       <View className="flex-1 py-10 px-16 justify-between items-center w-full">
@@ -45,7 +50,11 @@ export default function EncouragementScreen() {
 
         {/* Show button only after both messages are done */}
         {showButton && (
-          <Button className="rounded-full mb-10 w-full" size="xl">
+          <Button
+            className="rounded-full mb-10 w-full"
+            size="xl"
+            onPress={handleNext}
+          >
             <Text className="font-semibold tracking-wider">
               Analyse my answers
             </Text>

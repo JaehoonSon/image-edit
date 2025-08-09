@@ -17,13 +17,13 @@ export default function Spinner() {
   useEffect(() => {
     // Change message every 2 seconds, total 10 seconds
     if (step < messages.length - 1) {
-      const timer = setTimeout(() => setStep(step + 1), 2000);
+      const timer = setTimeout(() => setStep(step + 1), 1500);
       return () => clearTimeout(timer);
     } else {
       // After 10 seconds, redirect
       const timer = setTimeout(() => {
-        router.push("/(unauthenticated)/Paywall");
-      }, 2000);
+        router.replace("/(unauthenticated)/Paywall");
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, [step]);

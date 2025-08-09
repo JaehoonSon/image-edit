@@ -10,9 +10,9 @@ export const BASE_API_ENDPOINT = "http://109.199.116.115:8000";
 
 export const appMetadata: AppMetadata = {
   privacyPolicyUrl:
-    "https://chatgpt.com/c/686088a1-9ff0-800a-a16e-fa025f9c03c4",
+    "https://theblucks.github.io/Elysia/privacy",
   endUserLicenseAgreementUrl:
-    "https://chatgpt.com/c/686088a1-9ff0-800a-a16e-fa025f9c03c4",
+    "https://theblucks.github.io/Elysia/eula",
 };
 
 export const onboardingSlide = [

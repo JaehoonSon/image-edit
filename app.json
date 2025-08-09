@@ -1,28 +1,32 @@
 {
   "expo": {
-    "name": "ExpoTemplate",
-    "slug": "ExpoTemplate",
-    "version": "1.0.0",
+    "name": "Elysia - Photo Glow",
+    "slug": "elysia",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#faeeda"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "usesAppleSignIn": true,
-      "supportsTablet": true,
+      "supportsTablet": false,
+      "buildeNumber": "2",
       "bundleIdentifier": "com.theblucks.glowly",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
-        }
+        },
+        "NSCameraUsageDescription": "We need to use your camera to let you take photos or scan items.",
+        "NSPhotoLibraryUsageDescription": "We need to access your photo library so you can choose images from your gallery.",
+        "NSPhotoLibraryAddUsageDescription": "We need permission to save images to your photo library."
       }
     },
     "android": {
@@ -37,16 +41,16 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-    "plugins": ["expo-router", "expo-apple-authentication"],
+    "plugins": ["expo-router", "expo-apple-authentication", "expo-video"],
     "experiments": {
       "typedRoutes": true
     },
+    "owner": "knuceles",
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "aef6916d-1798-4b04-b9c8-8f130275d959"
+        "projectId": "a7e567b5-0040-4b61-8bc8-64963c8b4465"
       }
-    },
-    "owner": "knuceles"
+    }
   }
 }

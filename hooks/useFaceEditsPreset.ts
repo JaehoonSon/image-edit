@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
 import { BASE_API_ENDPOINT } from "~/config";
+import { supabase } from "~/lib/supabase";
 
 export interface FaceEditResult {
-  preset_id: string;
-  preset_name: string;
+  // preset_id: string;
+  // preset_name: string;
   job_id: string;
   frame_cost: number;
   credits_charged: number;
@@ -45,10 +46,18 @@ export function useFaceEditPresets(): UseFaceEditPresetsReturn {
         type: "image/jpeg",
       } as any);
 
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+      if (error) throw error;
+      const token = session?.access_token;
+
       const res = await fetch(`${BASE_API_ENDPOINT}/preset-face-edit-all`, {
         method: "POST",
         headers: {
           "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`,
         },
         body: formData,
       });

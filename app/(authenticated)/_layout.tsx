@@ -2,18 +2,21 @@ import { Text } from "react-native";
 import { Redirect, Stack, Tabs } from "expo-router";
 import { useAuth } from "~/contexts/AuthProvider";
 import { ThemeToggle } from "~/components/ThemeToggle";
+import LoadingScreen from "../Loading";
 
 export default function AuthenticatedLayout() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, hasEntitlement, isEntitlementLoading } =
+    useAuth();
 
   // You can keep the splash screen open, or render a loading screen like we do here.
-  if (isLoading) {
-    return <Text>Loading...</Text>;
+  if (isLoading || isEntitlementLoading) {
+    // return <Text>Loading...</Text>;
+    return <LoadingScreen />;
   }
 
   // Only require authentication within the (app) group's layout as users
   // need to be able to access the (auth) group and sign in again.
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !hasEntitlement) {
     // On web, static rendering will stop here as the user is not authenticated
     // in the headless Node process that the pages are rendered in.
     return <Redirect href="/(unauthenticated)" />;
@@ -32,8 +35,8 @@ export default function AuthenticatedLayout() {
     //   />
     //   <Tabs.Screen name="MainApp" options={{ href: null }} />
     // </Tabs>
-    <Stack screenOptions={{ headerShown: false }}>
-      <Tabs.Screen name="index" />
+    <Stack screenOptions={{ headerShown: false, animation: "default" }}>
+      <Tabs.Screen name="index" options={{ animation: "none" }} />
     </Stack>
   );
 }

@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { CheckCheck, Check } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { View, TouchableOpacity, Image, ScrollView } from "react-native";
@@ -5,12 +6,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
 import { Text } from "~/components/ui/text";
+import { showErrorToast } from "~/components/ui/toast";
 import { H1, H3, P } from "~/components/ui/typography";
+import { useAuth } from "~/contexts/AuthProvider";
+import { playHaptic } from "~/lib/hapticSound";
 import { makePayment } from "~/lib/payment";
+import Purchases from "react-native-purchases";
 
 const PLANS = [
   { key: "weekly", label: "Weekly", price: "$4.99/mo" },
-  { key: "lifetime", label: "Lifetime", price: "$14.99" },
+  { key: "monthly", label: "Monthly", price: "$7.99/mo" },
 ];
 
 // const FEATURES = [
@@ -33,42 +38,68 @@ const PLANS = [
 // ];
 const FEATURES = [
   {
-    icon: "👀",
-    title: "All Shifts at a Glance",
-    desc: "View every available school-work shift.",
+    icon: "📸",
+    title: "Ten Enhanced Photos",
+    desc: "Upload one picture and receive 10 pro edits.",
   },
   {
-    icon: "🖱️",
-    title: "One-Click Pickup",
-    desc: "Claim any shift instantly with a single click.",
+    icon: "🔄",
+    title: "Unlimited Remakes",
+    desc: "Regenerate your favorite edits as often as you like.",
   },
   {
-    icon: "🔔",
-    title: "Instant Notifications",
-    desc: "Receive real-time alerts for new shifts.",
+    icon: "🎨",
+    title: "Custom Filter Library",
+    desc: "Explore curated filters tailored to your style.",
   },
   {
-    icon: "📆",
-    title: "Auto-Pickup & Calendar Sync",
-    desc: "Automatically pick up based on your calendar",
+    icon: "🚀",
+    title: "HD Export & Share",
+    desc: "Get high-quality photos and post them immediately.",
   },
 ];
 
+const PRODUCT_IDS = ["subscription_monthly_1", "subscription_weekly_1"];
+
 export default function Paywall() {
   const [plan, setPlan] = useState("weekly");
+  const { refreshEntitlements } = useAuth();
 
-  const get_plan = async () => {
-    await makePayment("postureai.theblucks.com_weekly", "Weekly");
+  const select_plan = async () => {
+    // await makePayment("postureai.theblucks.com_weekly");
+    // console.log(plan);
+  };
+
+  const clicked_continue = async () => {
+    try {
+      // if (plan == "weekly") makePayment("subscription_weekly_1");
+      // else makePayment("subscription_monthly_1");
+      const product_id =
+        plan == "weekly" ? "subscription_weekly_1" : "subscription_monthly_1";
+      const info = await makePayment(product_id);
+      if (!info) throw "Error purchasing";
+      await refreshEntitlements();
+      playHaptic("success");
+      router.replace("/(authenticated)");
+    } catch (err) {
+      showErrorToast("Error purchasing");
+    }
+  };
+
+  const handle_restore_purchase = async () => {
+    playHaptic("soft");
+    const info = await Purchases.restorePurchases();
+    console.log(info);
   };
 
   useEffect(() => {
     (async () => {
-      await get_plan();
+      await select_plan();
     })();
   }, [plan]);
 
   return (
-    <SafeAreaView className="flex-1 bg-background text-foreground px-4 pt-6">
+    <SafeAreaView className="flex-1 bg-background text-foreground px-4">
       <ScrollView className="flex-1">
         {/* Header */}
 
@@ -80,15 +111,17 @@ export default function Paywall() {
         <View className="w-full mb-auto">
           <View className="w-36 h-36 rounded-full overflow-hidden mx-auto mb-2">
             <Image
-              source={require("~/assets/hero/hero.png")}
+              source={require("~/assets/images/splash-transparent.png")}
               className="w-full h-full"
               resizeMode="cover" // or "contain" if you need aspect ratio
             />
           </View>
 
           <View className="items-center mb-4">
-            <H1 className="text-3xl font-bold">Pick-Up Shifts Faster</H1>
-            <P className="mt-1 text-lg">Unlock premium features today</P>
+            <H1 className="text-3xl font-bold">Reveal Your True Glow</H1>
+            <P className="mt-1 text-lg">
+              Upgrade to unlock every pro filter and tool
+            </P>
           </View>
 
           {/* <View className="">
@@ -144,12 +177,16 @@ export default function Paywall() {
             })}
           </View>
 
-          <Button className="w-full rounded-full bg-primary" size="lg">
+          <Button
+            className="w-full rounded-full bg-primary"
+            size="lg"
+            onPress={clicked_continue}
+          >
             <Text className="font-semibold text-primary-foreground">
               Continue
             </Text>
           </Button>
-          <TouchableOpacity className="mt-3">
+          <TouchableOpacity className="mt-3" onPress={handle_restore_purchase}>
             <Text className="text-center text-muted-foreground text-sm">
               Restore Purchase
             </Text>

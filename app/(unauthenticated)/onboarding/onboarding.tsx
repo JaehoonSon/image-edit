@@ -8,6 +8,7 @@ import Animated, {
   FadeOutDown,
   LayoutAnimationConfig,
 } from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -19,33 +20,55 @@ import { CountUp } from "~/components/ui/count-up";
 import { Text } from "~/components/ui/text";
 import { Toggle, ToggleIcon } from "~/components/ui/toggle";
 import { TypeWriter } from "~/components/ui/type-writer";
-import { H2, Muted, P } from "~/components/ui/typography";
+import { H2, H3, Muted, P } from "~/components/ui/typography";
 import { playHaptic } from "~/lib/hapticSound";
 
-const GenderStep = ({ onAnswer, currentAnswer }) => (
-  <View className="mx-auto w-[90%] gap-y-4">
-    <View className="gap-y-4">
-      <H2>What's your gender?</H2>
-      <P>This helps us to create a custom plan</P>
+const GoalStep = ({ onAnswer, currentAnswer = [] }) => {
+  const toggle = (val) => {
+    onAnswer((prev = []) =>
+      prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]
+    );
+  };
+  const isSelected = (val) => currentAnswer?.includes?.(val);
+  return (
+    <View className="mx-auto w-[90%] gap-y-4">
+      <View className="gap-y-4">
+        <H2>How do you want to use the app?</H2>
+        <P>Select all of the options that apply to you</P>
+      </View>
+      <View className="gap-y-4">
+        <Button
+          variant={isSelected("touch") ? "default" : "secondary"}
+          size="xl"
+          onPress={() => toggle("touch")}
+        >
+          <Text>Touch up my selfies for Instagram</Text>
+        </Button>
+        <Button
+          variant={isSelected("experiment") ? "default" : "secondary"}
+          size="xl"
+          onPress={() => toggle("experiment")}
+        >
+          <Text>Experiment with different looks</Text>
+        </Button>
+        <Button
+          variant={isSelected("smooth") ? "default" : "secondary"}
+          size="xl"
+          onPress={() => toggle("smooth")}
+        >
+          <Text>Smooth skin and brighten eye</Text>
+        </Button>
+        <Button
+          variant={isSelected("customize") ? "default" : "secondary"}
+          size="xl"
+          onPress={() => toggle("customize")}
+        >
+          <Text>Customize facial features</Text>
+        </Button>
+      </View>
     </View>
-    <View className="gap-y-4">
-      <Button
-        variant={currentAnswer === "male" ? "default" : "secondary"}
-        size="xl"
-        onPress={() => onAnswer("male")}
-      >
-        <Text>Male</Text>
-      </Button>
-      <Button
-        variant={currentAnswer === "female" ? "default" : "secondary"}
-        size="xl"
-        onPress={() => onAnswer("female")}
-      >
-        <Text>Female</Text>
-      </Button>
-    </View>
-  </View>
-);
+  );
+};
 
 const AgeStep = ({ onAnswer, currentAnswer }) => (
   <View className="mx-auto w-[90%] gap-y-4">
@@ -86,65 +109,119 @@ const AgeStep = ({ onAnswer, currentAnswer }) => (
   </View>
 );
 
-const GoalsStep = ({ onAnswer, currentAnswer }) => (
+const PlatformStep = ({ onAnswer, currentAnswer }) => (
   <View className="mx-auto w-[90%] gap-y-4">
     <View className="gap-y-4">
-      <H2>What's your main goal?</H2>
-      <P>Select what you want to achieve</P>
+      <H2>Where do you post the most?</H2>
+      <P>Select where you want to optimize it for</P>
     </View>
     <View className="gap-y-4">
       <Button
-        variant={currentAnswer === "lose_weight" ? "default" : "secondary"}
+        variant={currentAnswer === "instagram" ? "default" : "secondary"}
         size="xl"
-        onPress={() => onAnswer("lose_weight")}
+        onPress={() => onAnswer("instagram")}
       >
-        <Text>Lose Weight</Text>
+        <Text>Instagram</Text>
       </Button>
       <Button
-        variant={currentAnswer === "gain_muscle" ? "default" : "secondary"}
+        variant={currentAnswer === "tiktok" ? "default" : "secondary"}
         size="xl"
-        onPress={() => onAnswer("gain_muscle")}
+        onPress={() => onAnswer("tiktok")}
       >
-        <Text>Gain Muscle</Text>
+        <Text>TikTok</Text>
       </Button>
       <Button
-        variant={currentAnswer === "stay_healthy" ? "default" : "secondary"}
+        variant={currentAnswer === "pintrest" ? "default" : "secondary"}
         size="xl"
-        onPress={() => onAnswer("stay_healthy")}
+        onPress={() => onAnswer("pintrest")}
       >
-        <Text>Stay Healthy</Text>
+        <Text>Pintrest</Text>
+      </Button>
+      <Button
+        variant={currentAnswer === "other" ? "default" : "secondary"}
+        size="xl"
+        onPress={() => onAnswer("other")}
+      >
+        <Text>Other</Text>
       </Button>
     </View>
   </View>
 );
 
-const ExperienceStep = ({ onAnswer, currentAnswer }) => (
+const AestheticStep = ({ onAnswer, currentAnswer = [] }) => {
+  const toggle = (val) => {
+    onAnswer((prev = []) =>
+      prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]
+    );
+  };
+  const isSelected = (val) => currentAnswer?.includes?.(val);
+  return (
+    <View className="mx-auto w-[90%] gap-y-4">
+      <View className="gap-y-4">
+        <H3>What kind of look you're going for?</H3>
+        <P>We'll edit photos the way you like</P>
+      </View>
+      <View className="gap-y-4">
+        <Button
+          variant={isSelected("minimalist") ? "default" : "secondary"}
+          size="xl"
+          onPress={() => toggle("minimalist")}
+        >
+          <Text>Minimalist</Text>
+        </Button>
+        <Button
+          variant={isSelected("vibrant") ? "default" : "secondary"}
+          size="xl"
+          onPress={() => toggle("vibrant")}
+        >
+          <Text>Vibrant</Text>
+        </Button>
+        <Button
+          variant={isSelected("moody") ? "default" : "secondary"}
+          size="xl"
+          onPress={() => toggle("moody")}
+        >
+          <Text>Moody</Text>
+        </Button>
+        <Button
+          variant={isSelected("sophisticated") ? "default" : "secondary"}
+          size="xl"
+          onPress={() => toggle("sophisticated")}
+        >
+          <Text>Sophisticated</Text>
+        </Button>
+      </View>
+    </View>
+  );
+};
+
+const SkinStep = ({ onAnswer, currentAnswer }) => (
   <View className="mx-auto w-[90%] gap-y-4">
     <View className="gap-y-4">
-      <H2>What's your fitness experience?</H2>
-      <P>This helps us adjust the difficulty</P>
+      <H2>What's your skin tone?</H2>
+      <P></P>
     </View>
     <View className="gap-y-4">
       <Button
-        variant={currentAnswer === "beginner" ? "default" : "secondary"}
+        variant={currentAnswer === "light" ? "default" : "secondary"}
         size="xl"
-        onPress={() => onAnswer("beginner")}
+        onPress={() => onAnswer("light")}
       >
-        <Text>Beginner</Text>
+        <Text>Light</Text>
       </Button>
       <Button
-        variant={currentAnswer === "intermediate" ? "default" : "secondary"}
+        variant={currentAnswer === "medium" ? "default" : "secondary"}
         size="xl"
-        onPress={() => onAnswer("intermediate")}
+        onPress={() => onAnswer("medium")}
       >
-        <Text>Intermediate</Text>
+        <Text>Medium</Text>
       </Button>
       <Button
-        variant={currentAnswer === "advanced" ? "default" : "secondary"}
+        variant={currentAnswer === "dark" ? "default" : "secondary"}
         size="xl"
-        onPress={() => onAnswer("advanced")}
+        onPress={() => onAnswer("dark")}
       >
-        <Text>Advanced</Text>
+        <Text>Dark</Text>
       </Button>
     </View>
   </View>
@@ -153,10 +230,9 @@ const ExperienceStep = ({ onAnswer, currentAnswer }) => (
 const Credibility = () => (
   <View className="mx-auto w-[90%] gap-y-4">
     <View className="gap-y-4">
-      <H2>How accurate is our tool?</H2>
-      <P>We use key metrics and top scientific research to back our data</P>
+      <H2>How natural do your enhanced photos appear?</H2>
+      <P>Validated by top makeup artists for true‑to‑life results.</P>
     </View>
-    {/* <TypeWriter text="98.5%" /> */}
     <View className="flex flex-row">
       <CountUp
         className="font-bold text-7xl"
@@ -176,13 +252,11 @@ const Evidence = () => (
       <H2 className="border-0">Backed by Experts.</H2>
       <H2 className="border-0">Carefully Made For You</H2>
     </View>
-    {/* <TypeWriter text="98.5%" /> */}
     <View className="flex flex-col">
       <LayoutAnimationConfig>
         <Animated.View
           key={"1"}
           entering={FadeInDown.duration(600)}
-          // exiting={FadeOutDown}
           className="items-center mb-3"
         >
           <Card className="w-full shadow-none">
@@ -212,7 +286,6 @@ const Evidence = () => (
         <Animated.View
           key={"2"}
           entering={FadeInDown.duration(700)}
-          // exiting={FadeOutDown}
           className="items-center"
         >
           <Card className="w-full shadow-none">
@@ -246,16 +319,17 @@ const Evidence = () => (
 const Implication = () => (
   <View className="mx-auto w-[90%] gap-y-4">
     <View className="gap-y-4">
-      <H2>What this means for you?</H2>
+      <H2>Why amazing photos matter?</H2>
     </View>
-    {/* <TypeWriter text="98.5%" /> */}
     <View className="flex flex-col gap-x-4 gap-y-4">
       {[
-        "40% fewer opportunities",
-        "Ignored in rooms that matter",
-        "50% less likely to be a CEO",
+        "Up to 60% more likes",
+        "Growing follower counts",
+        "39% more likely to be featured in Explore Section",
+        "Boost your confidence",
       ].map((e, i) => (
         <Animated.View
+          key={e}
           className="flex flex-row gap-x-4"
           entering={FadeInDown.duration(800).delay(i * 200)}
         >
@@ -267,32 +341,38 @@ const Implication = () => (
   </View>
 );
 
-// Step configuration with control options
 const stepConfig = [
   {
-    key: "gender",
-    component: GenderStep,
+    key: "goal",
+    component: GoalStep,
+    autoAdvance: false,
+    nextButton: true,
+    backButton: true,
+  },
+  // {
+  //   key: "age",
+  //   component: AgeStep,
+  //   autoAdvance: true,
+  //   nextButton: false,
+  //   backButton: true,
+  // },
+  {
+    key: "platform",
+    component: PlatformStep,
     autoAdvance: true,
     nextButton: false,
     backButton: true,
   },
   {
-    key: "age",
-    component: AgeStep,
-    autoAdvance: true,
-    nextButton: false,
+    key: "aesthetic",
+    component: AestheticStep,
+    autoAdvance: false,
+    nextButton: true,
     backButton: true,
   },
   {
-    key: "goals",
-    component: GoalsStep,
-    autoAdvance: true,
-    nextButton: false,
-    backButton: true,
-  },
-  {
-    key: "experience",
-    component: ExperienceStep,
+    key: "skin",
+    component: SkinStep,
     autoAdvance: true,
     nextButton: false,
     backButton: true,
@@ -304,13 +384,13 @@ const stepConfig = [
     nextButton: true,
     backButton: true,
   },
-  {
-    key: "evidence",
-    component: Evidence,
-    autoAdvance: true,
-    nextButton: true,
-    backButton: true,
-  },
+  // {
+  //   key: "evidence",
+  //   component: Evidence,
+  //   autoAdvance: true,
+  //   nextButton: true,
+  //   backButton: true,
+  // },
   {
     key: "implication",
     component: Implication,
@@ -327,6 +407,7 @@ export default function OnboardingScreen() {
     age: null,
     goals: null,
     experience: null,
+    aesthetic: [],
   });
 
   const totalSteps = stepConfig.length;
@@ -337,37 +418,39 @@ export default function OnboardingScreen() {
   const isLastStep = currentStep === totalSteps - 1;
   const progress = ((currentStep + 1) / totalSteps) * 100;
 
-  const handleAnswer = (answer) => {
+  const handleAnswer = (answerOrUpdater) => {
     playHaptic("selection");
-    setAnswers((prev) => ({
-      ...prev,
-      [currentStepKey]: answer,
-    }));
+    setAnswers((prev) => {
+      const current = prev[currentStepKey];
+      const nextValue =
+        typeof answerOrUpdater === "function"
+          ? answerOrUpdater(current)
+          : answerOrUpdater;
+      return { ...prev, [currentStepKey]: nextValue };
+    });
 
-    // Auto-advance to next step if configured with delay
     if (currentStepConfig.autoAdvance) {
       setTimeout(() => {
         if (isLastStep) {
-          // Handle completion
           console.log("Onboarding complete:", {
             ...answers,
-            [currentStepKey]: answer,
+            [currentStepKey]:
+              typeof answerOrUpdater === "function"
+                ? answerOrUpdater(answers[currentStepKey])
+                : answerOrUpdater,
           });
-          // Navigate to next screen or whatever you need
         } else {
           setCurrentStep((prev) => prev + 1);
         }
-      }, 100); // 1 second delay
+      }, 100);
     }
   };
 
   const handleNext = () => {
     playHaptic("light");
     if (isLastStep) {
-      // Handle completion
       console.log("Onboarding complete:", answers);
-      router.push("/(unauthenticated)/Encouragement");
-      // Navigate to next screen or whatever you need
+      router.replace("/(unauthenticated)/onboarding/Encouragement");
     } else {
       setCurrentStep((prev) => prev + 1);
     }
@@ -378,7 +461,7 @@ export default function OnboardingScreen() {
     if (!isFirstStep) {
       setCurrentStep((prev) => prev - 1);
     } else {
-      router.back();
+      router.replace("/(unauthenticated)");
     }
   };
 
@@ -391,58 +474,59 @@ export default function OnboardingScreen() {
     );
   };
 
-  const hasAnswer = answers[currentStepKey] !== null;
+  const val = answers[currentStepKey];
+  const hasAnswer = Array.isArray(val) ? val.length > 0 : val !== null;
   const showNextButton = currentStepConfig.nextButton;
 
   return (
     <View className="flex-1 justify-between">
-      {/* Progress indicator with back button */}
-      <View className="mx-auto w-[90%] pt-4">
-        <View className="flex-row justify-between items-center mb-4">
-          <View className="flex-row items-center gap-x-3">
-            {currentStepConfig.backButton && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onPress={handleBack}
-                className="p-2"
-              >
-                <Text>← Back</Text>
-              </Button>
-            )}
+      <SafeAreaView className="flex-1">
+        <View className="mx-auto w-[90%] pt-4">
+          <View className="flex-row justify-between items-center mb-4">
+            <View className="flex-row items-center gap-x-3">
+              {currentStepConfig.backButton && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onPress={handleBack}
+                  className="p-2"
+                >
+                  <Text>← Back</Text>
+                </Button>
+              )}
+              <Text className="text-sm text-gray-500">
+                Step {currentStep + 1} of {totalSteps}
+              </Text>
+            </View>
             <Text className="text-sm text-gray-500">
-              Step {currentStep + 1} of {totalSteps}
+              {Math.round(progress)}%
             </Text>
           </View>
-          <Text className="text-sm text-gray-500">{Math.round(progress)}%</Text>
+          <View className="w-full bg-gray-200 rounded-full h-2">
+            <View
+              className="bg-primary h-2 rounded-full"
+              style={{ width: `${progress}%` }}
+            />
+          </View>
         </View>
-        <View className="w-full bg-gray-200 rounded-full h-2">
-          <View
-            className="bg-blue-500 h-2 rounded-full"
-            style={{ width: `${progress}%` }}
-          />
-        </View>
-      </View>
 
-      {/* Current step content */}
-      <View className="flex-1 justify-center">{renderCurrentStep()}</View>
+        <View className="flex-1 justify-center">{renderCurrentStep()}</View>
 
-      {/* Next button (if configured) */}
-      {showNextButton && (
-        <View className="mx-auto w-[90%] pb-8">
-          <Button
-            size="xl"
-            onPress={handleNext}
-            disabled={!hasAnswer}
-            variant={hasAnswer ? "default" : "secondary"}
-          >
-            <Text>{isLastStep ? "Complete" : "Next"}</Text>
-          </Button>
-        </View>
-      )}
+        {showNextButton && (
+          <View className="mx-auto w-[90%] pb-8">
+            <Button
+              size="xl"
+              onPress={handleNext}
+              disabled={!hasAnswer}
+              variant={hasAnswer ? "default" : "secondary"}
+            >
+              <Text>{isLastStep ? "Complete" : "Next"}</Text>
+            </Button>
+          </View>
+        )}
 
-      {/* Bottom spacing (if no next button) */}
-      {!showNextButton && <View className="pb-8" />}
+        {!showNextButton && <View className="pb-8" />}
+      </SafeAreaView>
     </View>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { FaceEditResult } from "./useFaceEditsPreset";
 import { BASE_API_ENDPOINT } from "~/config";
+import { supabase } from "~/lib/supabase";
 
 export interface Downloads {
   url: string;
@@ -47,11 +48,21 @@ export function useGetFaceEdit(): UseGetFaceEditPresetsReturn {
   const fetchJobStatus = useCallback(
     async (jobId: string): Promise<FaceEditStatus | null> => {
       try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+        if (error) throw error;
+        const token = session?.access_token;
+
         const res = await fetch(
           `${BASE_API_ENDPOINT}/face-edit-status/${jobId}`,
           {
             method: "GET",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
           }
         );
 

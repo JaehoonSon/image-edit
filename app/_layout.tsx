@@ -20,6 +20,7 @@ import { SplashScreenController } from "./splash";
 import Toast from "react-native-toast-message";
 import { toastConfig } from "~/components/ui/toast";
 import Purchases from "react-native-purchases";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 const LIGHT_THEME: Theme = {
   ...DefaultTheme,
@@ -44,31 +45,33 @@ const usePlatformSpecificSetup = Platform.select({
 function AppContent() {
   const { isDarkColorScheme } = useColorScheme();
 
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, hasEntitlement } = useAuth();
 
   React.useEffect(() => {
     Purchases.setLogLevel(Purchases.LOG_LEVEL.DEBUG);
     if (Platform.OS === "ios") {
       Purchases.configure({
-        apiKey: "appl_qATEcGoiFMWALHhzwFlDLeYquIn",
+        apiKey: "appl_JsYQxXXawrBgZjjxoWIGnSZZXUP",
       });
     }
   }, []);
 
   return (
-    <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
-      <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Protected guard={isAuthenticated}>
+    <ThemeProvider value={isDarkColorScheme ? LIGHT_THEME : LIGHT_THEME}>
+      <StatusBar style={isDarkColorScheme ? "light" : "light"} />
+      <Stack screenOptions={{ headerShown: false, animation: "none" }}>
+        <Stack.Protected guard={isAuthenticated && hasEntitlement}>
           <Stack.Screen
             name="/(authenticated)"
             options={{ headerRight: () => <ThemeToggle /> }}
           />
         </Stack.Protected>
-        <Stack.Protected guard={!isAuthenticated}>
+        <Stack.Protected
+          guard={!isAuthenticated || (isAuthenticated && !hasEntitlement)}
+        >
           <Stack.Screen
             name="/(unauthenticated)"
-            options={{ headerRight: () => <ThemeToggle />, headerShown: false }}
+            options={{ headerShown: false }}
           />
         </Stack.Protected>
       </Stack>
@@ -81,11 +84,13 @@ export default function RootLayout() {
   usePlatformSpecificSetup();
 
   return (
-    <AuthProvider>
-      <SplashScreenController />
-      <AppContent />
-      <Toast config={toastConfig} />
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <SplashScreenController />
+        <AppContent />
+        <Toast config={toastConfig} />
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 

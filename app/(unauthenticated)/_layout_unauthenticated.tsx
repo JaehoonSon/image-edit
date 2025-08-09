@@ -19,7 +19,7 @@ export default function UnAuthenticatedLayout() {
 
   // This layout can be deferred because it's not the root layout.
   return (
-    <Stack screenOptions={{ headerShown: false, animation: "default" }}>
+    <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />
     </Stack>
   );

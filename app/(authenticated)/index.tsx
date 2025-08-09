@@ -6,7 +6,7 @@ import {
   ScrollView,
 } from "react-native";
 import { H1, Large } from "~/components/ui/typography";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Text } from "~/components/ui/text";
 import Feather from "@expo/vector-icons/Feather";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,25 +16,43 @@ import LottieView from "lottie-react-native";
 import { Button } from "~/components/ui/button";
 import { playHaptic } from "~/lib/hapticSound";
 import { router } from "expo-router";
-
-const DEMO_IMAGES: { uri: string }[] = [
-  { uri: "https://images.unsplash.com/photo-1518717758536-85ae29035b6d" },
-  { uri: "https://images.unsplash.com/photo-1506744038136-46273834b3fb" },
-  { uri: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca" },
-  // { uri: "https://images.unsplash.com/photo-1519985176271-adb1088fa94c" },
-  // { uri: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429" },
-  // { uri: "https://images.unsplash.com/photo-1465101178521-cb6e1f6b7a47" },
-  // { uri: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca" },
-  // { uri: "https://images.unsplash.com/photo-1519125323398-675f0ddb6308" },
-  // { uri: "https://images.unsplash.com/photo-1519985176271-adb1088fa94c" },
-  // { uri: "https://images.unsplash.com/photo-1506744038136-46273834b3fb" },
-  // { uri: "https://images.unsplash.com/photo-1518717758536-85ae29035b6d" },
-  // { uri: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429" },
-];
+import ReformButton from "./test";
+import { useGetCollectionDetails } from "~/hooks/useGetCollectionDetails";
+import GradientText from "~/components/GradientText";
+import { Pressable, RefreshControl } from "react-native-gesture-handler";
+import GradientH1 from "~/components/GradientH1";
+import { useGetCollection } from "~/hooks/useGetCollection";
+import { supabase } from "~/lib/supabase";
+import { FaceEditResult } from "~/hooks/useFaceEditsPreset";
+import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 
 export default function IndexAuthenticatedScreen() {
-  // For demo, use demo images. Replace with your own state logic as needed.
-  const [images, setImages] = useState<{ uri: string }[]>(DEMO_IMAGES);
+  const {
+    data: image_data,
+    loading,
+    error,
+    getCollectionData,
+  } = useGetCollection();
+
+  const { getCollectionDetail } = useGetCollectionDetails();
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // refetch your data here
+      await getCollectionData();
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      await getCollectionData();
+    })();
+  }, []);
 
   const clicked_saved = () => {
     playHaptic("soft");
@@ -52,81 +70,112 @@ export default function IndexAuthenticatedScreen() {
     // router.push("/(authenticated)/show-results");
   };
 
+  const clicked_collection = async (collection_id: string) => {
+    playHaptic("soft");
+    // const { data: collection_detail_data, error: collection_detail_error } =
+    //   await supabase
+    //     .from("image_detail")
+    //     .select(`job_id`)
+    //     .eq("collection_id", collection_id)
+    //     .not("enhanced_image_url", "is", null)
+    //     .limit(20);
+    // if (collection_detail_data == null) return;
+
+    const result = await getCollectionDetail(collection_id);
+
+    const faceEditResult: FaceEditResult[] = result.map((e) => ({
+      job_id: e.job_id,
+      frame_cost: 1,
+      credits_charged: 1,
+    }));
+
+    router.push({
+      pathname: "/(authenticated)/show-results",
+      params: {
+        uri:
+          image_data.find((e) => e.collection_id === collection_id)
+            ?.human_image ?? "",
+        data: JSON.stringify(faceEditResult), // serialize data to string
+      },
+    });
+  };
+
   // Gallery component
   const renderGallery = () => {
-    if (!images || images.length === 0) {
+    if (loading || refreshing) return <View></View>;
+    if (!image_data || image_data.length === 0) {
       return (
         <View className="flex-1 items-center justify-center gap-4">
-          <LottieView
-            source={require("../../assets/icons/image_not_preview.json")}
-            loop
-            autoPlay
-            style={{ width: 180, height: 180 }}
-          />
-          <Text className="text-lg text-muted-foreground text-center">
+          <TouchableOpacity onPress={clicked_reform} activeOpacity={0.95}>
+            <LottieView
+              source={require("../../assets/icons/image_not_preview.json")}
+              loop
+              autoPlay
+              style={{ width: 180, height: 180 }}
+              speed={0.5}
+            />
+          </TouchableOpacity>
+          {/* <Text className="text-lg text-muted-foreground text-center">
             No images yet. Upload a photo to get started!
-          </Text>
+          </Text> */}
+          <GradientText
+            text="No images yet. Upload to get started!"
+            fontSize={15}
+          />
         </View>
       );
     }
-    if (images.length <= 3) {
-      // 1-3 images: each is full width, stacked vertically, scrollable
-      return (
-        <ScrollView
-          className="flex-1 w-full"
-          contentContainerStyle={{ gap: 8, paddingBottom: 16 }}
-          showsVerticalScrollIndicator={false}
-        >
-          {images.map((img, idx) => (
-            <Card key={idx} className="w-full mb-0">
-              <AspectRatio ratio={1} className="w-full">
+    // 1-3 images: each is full width, stacked vertically, scrollable
+    return (
+      <ScrollView
+        className="flex-1 w-full"
+        contentContainerStyle={{ gap: 8, paddingBottom: 16 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {image_data.map((img, idx) => (
+          <Card key={idx} className="w-full mb-0">
+            <TouchableOpacity
+              onPress={() => clicked_collection(img.collection_id)}
+              activeOpacity={0.95}
+            >
+              <AspectRatio ratio={9 / 16} className="w-full">
                 <Image
-                  source={{ uri: img.uri }}
+                  source={{ uri: img.human_image!! }}
                   className="w-full h-full rounded-lg"
                   resizeMode="cover"
                 />
               </AspectRatio>
-            </Card>
-          ))}
-        </ScrollView>
-      );
-    }
-    // 4 or more images: grid
-    return (
-      <FlatList
-        data={images}
-        keyExtractor={(_, idx) => idx.toString()}
-        numColumns={2}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ gap: 4, paddingBottom: 16 }}
-        columnWrapperStyle={{ gap: 4 }}
-        className="flex-1"
-        renderItem={({ item }) => (
-          <Card className="flex-1">
-            <AspectRatio ratio={1} className="w-full">
-              <Image
-                source={{ uri: item.uri }}
-                className="w-full h-full rounded-lg"
-                resizeMode="cover"
-              />
-            </AspectRatio>
+            </TouchableOpacity>
           </Card>
-        )}
-      />
+        ))}
+      </ScrollView>
     );
   };
+
   return (
-    <View className="flex-1 gap-5 p-2 bg-secondary/30">
+    <View className="flex-1 gap-5 p-2 bg-background">
       <SafeAreaView className="flex-1 items-center" edges={["top"]}>
         {/* Header */}
         <View className="flex-row items-center justify-between w-full">
-          <View>
-            <H1>Reform AI</H1>
+          {/* <View className="">
+            <H1 className="opacity-0">Reform AI</H1>
+            <GradientText text="Reform AI" />
+            <GradientH1>Reform AI</GradientH1>
+          </View> */}
+          <View className="relative items-center justify-center rounded-full">
+            <Text className="text-4xl font-bold opacity-0">Reform AI </Text>
+
+            <View className="absolute inset-0 items-center justify-center mt-6">
+              <GradientText text="Reform AI" fontSize={32} />
+            </View>
           </View>
 
-          <View className="flex-row items-center gap-x-4">
-            <TouchableOpacity onPress={clicked_saved}>
-              <Feather name="bookmark" size={32} color="black" />
+          <View className="flex-row items-center gap-x-5">
+            <TouchableOpacity onPress={clicked_reform}>
+              <FontAwesome5 name="plus" size={24} color="black" />
             </TouchableOpacity>
             <TouchableOpacity onPress={clicked_setting}>
               <Feather name="settings" size={32} color="black" />
@@ -137,7 +186,7 @@ export default function IndexAuthenticatedScreen() {
         <View className="flex-1 w-full pt-4">{renderGallery()}</View>
       </SafeAreaView>
       {/* Fixed Reform! button */}
-      <View className="absolute bottom-6 left-0 right-0 items-center z-50">
+      <View className="absolute w-full bottom-6 left-0 right-0 items-center z-50">
         <Button
           className="w-[80%] rounded-full hover:opacity-95 active:opacity-95"
           size={"xl"}
@@ -145,6 +194,7 @@ export default function IndexAuthenticatedScreen() {
         >
           <H1 className="text-primary-foreground">Reform</H1>
         </Button>
+        {/* <ReformButton /> */}
       </View>
     </View>
   );

@@ -9,25 +9,22 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import { showErrorToast } from "~/components/ui/toast";
 import { supabase } from "~/lib/supabase";
 import { useAuth } from "~/contexts/AuthProvider";
+import GradientText from "~/components/GradientText";
 
-export default function Login() {
-  const { signInApple, hasEntitlement } = useAuth();
-
+export default function SignUp() {
+  const { signInApple } = useAuth();
   const handleLogin = async () => {
     try {
       await signInApple();
-
-      if (hasEntitlement) router.replace("/(authenticated)");
-      else {
-        router.replace("/onboarding/onboarding");
-      }
+      router.replace("/onboarding/onboarding");
     } catch (err) {
-      showErrorToast("Error logging in");
+      showErrorToast("Error Signing in");
     }
   };
   return (
     <View className="flex-1 justify-center items-center gap-5 p-6 px-10 bg-background">
-      <H1 className="text-center">Already have an account?</H1>
+      {/* <H1 className="text-center">Let's Start</H1> */}
+      <GradientText text="Let's Start" fontSize={50}></GradientText>
 
       <TouchableOpacity
         className="w-full"
