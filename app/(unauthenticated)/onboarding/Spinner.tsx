@@ -15,22 +15,20 @@ export default function Spinner() {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    // Change message every 2 seconds, total 10 seconds
     if (step < messages.length - 1) {
-      const timer = setTimeout(() => setStep(step + 1), 1500);
+      const timer = setTimeout(() => setStep(step + 1), 1300);
       return () => clearTimeout(timer);
     } else {
-      // After 10 seconds, redirect
       const timer = setTimeout(() => {
         router.replace("/(unauthenticated)/Paywall");
-      }, 1500);
+      }, 1300);
       return () => clearTimeout(timer);
     }
   }, [step]);
 
   return (
-    <View className="flex-1 items-center justify-center bg-white">
-      <ActivityIndicator size="large" color="#0000ff" />
+    <View className="flex-1 items-center justify-center bg-background">
+      <ActivityIndicator size="large" color="#f66763" />
       <Text className="mt-6 text-lg font-semibold text-gray-700 text-center">
         {messages[step]}
       </Text>

@@ -16,11 +16,11 @@ import { useAuth } from "~/contexts/AuthProvider";
 import { useEffect, useState } from "react";
 
 export function SplashScreenController() {
-  const { isLoading } = useAuth();
+  const { isLoading, isEntitlementLoading } = useAuth();
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
   useEffect(() => {
-    // Set minimum display time of 3 seconds
+    // Set minimum display time of 5 seconds
     const timer = setTimeout(() => {
       setMinTimeElapsed(true);
     }, 5000);
@@ -32,7 +32,7 @@ export function SplashScreenController() {
     // Hide splash screen only when both conditions are met:
     // 1. Auth loading is complete (!isLoading)
     // 2. Minimum 3 seconds have elapsed (minTimeElapsed)
-    if (!isLoading && minTimeElapsed) {
+    if (!isLoading && !isEntitlementLoading && minTimeElapsed) {
       SplashScreen.hideAsync();
     }
   }, [isLoading, minTimeElapsed]);

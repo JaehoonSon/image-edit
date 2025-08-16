@@ -10,60 +10,40 @@ export function useGetCollection() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getCollectionData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    // setData(data);
-
-    try {
-      // if (data.length == 0) {
-      //   const { data: collection_data, error: collection_error } =
-      //     await supabase
-      //       .from("image_collection")
-      //       .select("*")
-      //       .order("created_at", { ascending: false })
-      //       .limit(5);
-
-      //   if (collection_error) throw collection_error;
-
-      //   setData(collection_data);
-      // } else {
-      //   const { data: collection_data, error: collection_error } =
-      //     await supabase
-      //       .from("image_collection")
-      //       .select("*")
-      //       .order("created_at", { ascending: false })
-      //       .gt("created_at", data[0].created_at)
-      //       .limit(5);
-
-      //   if (collection_error) throw collection_error;
-
-      //   setData((prev) => [...collection_data, ...prev]);
-      // }
-
-      let query = supabase
-        .from("image_collection")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      if (data.length > 0) {
-        query = query.gt("created_at", data[0].created_at);
-      }
-
-      const { data: newItems, error } = await query;
-      if (error) throw error;
-      if (!newItems || newItems.length === 0) return;
-
-      setData((prev) =>
-        data.length === 0 ? newItems : [...newItems, ...prev]
-      );
-    } catch (err: any) {
-      setError(err.message || "Retrieval Fail");
-    } finally {
-      setLoading(false);
-    }
+  const clearData = useCallback(() => {
+    setData([]);
   }, []);
 
-  return { data, loading, error, getCollectionData };
+  const getCollectionData = useCallback(
+    async (lastEndDate: string = new Date().toISOString()) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        let query = supabase
+          .from("image_collection")
+          .select("*")
+          .lt("created_at", lastEndDate)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        const { data: newItems, error } = await query;
+        if (error) throw error;
+        if (!newItems || newItems.length === 0) return;
+
+        setData((prev) => {
+          const existing = new Set(prev.map((i) => i.id));
+          const toAppend = newItems.filter((i) => !existing.has(i.id));
+          return prev.length === 0 ? toAppend : [...prev, ...toAppend];
+        });
+      } catch (err: any) {
+        setError(err.message || "Retrieval Fail");
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  return { data, loading, error, getCollectionData, clearData };
 }

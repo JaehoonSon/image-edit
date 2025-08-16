@@ -10,6 +10,7 @@ import { supabase } from "~/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import * as AppleAuthentication from "expo-apple-authentication";
 import Purchases, { LOG_LEVEL, CustomerInfo } from "react-native-purchases";
+import { posthog } from "~/lib/posthog";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -44,12 +45,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ----- RevenueCat configure + listener -----
   useEffect(() => {
-    // Configure once on app mount
-    // Purchases.setLogLevel(LOG_LEVEL.DEBUG); // or DEBUG during development
-    // Purchases.configure({
-    //   apiKey: "appl_JsYQxXXawrBgZjjxoWIGnSZZXUP",
-    // });
-
     // Initial fetch for anonymous/boot state
     (async () => {
       await refreshEntitlements();
@@ -141,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
     await Purchases.logOut();
+    posthog.reset();
     if (error) throw error;
   };
 
@@ -160,10 +156,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (error) throw error;
     const id = await data.user.id;
+    posthog.identify(id, { email: data.user.email ?? "" });
     await Purchases.logIn(id);
     await refreshEntitlements();
-
-    // RC identity will be linked by the user effect above
   };
 
   // ----- Memoized context value -----

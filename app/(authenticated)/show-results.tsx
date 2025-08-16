@@ -36,62 +36,17 @@ import GradientText from "~/components/GradientText";
 import { downloadImageToLibrary } from "~/lib/media";
 import { showErrorToast, showSuccessToast } from "~/components/ui/toast";
 import { send_like } from "~/hooks/useLikes";
+import { posthog } from "~/lib/posthog";
 
 const screenWidth = Dimensions.get("window").width;
 const thumbnailSize = 80;
 const thumbnailSpacing = 8;
 
-const faceEditResult: FaceEditResult[] = [
-  { job_id: "cmdni5sv301y0370zl9mc2lxj", frame_cost: 1, credits_charged: 1 },
-  { job_id: "cmdni5te309l82z0zteonkqiq", frame_cost: 1, credits_charged: 1 },
-  { job_id: "cmdni5tsa09y14b0zqznohdev", frame_cost: 1, credits_charged: 1 },
-  { job_id: "cmdni5u7501y1370zgqq4deeb", frame_cost: 1, credits_charged: 1 },
-  { job_id: "cmdni5uke09l92z0z7vluboww", frame_cost: 1, credits_charged: 1 },
-  { job_id: "cmdni5uxs09y24b0znrgvyia8", frame_cost: 1, credits_charged: 1 },
-  { job_id: "cmdni5vdk09y34b0z67xn6okv", frame_cost: 1, credits_charged: 1 },
-  { job_id: "cmdni5vun01y2370z75j6j1j8", frame_cost: 1, credits_charged: 1 },
-  { job_id: "cmdni5w7g01y3370zr5ikcf3m", frame_cost: 1, credits_charged: 1 },
-  { job_id: "cmdni5wkw09la2z0zuod914vl", frame_cost: 1, credits_charged: 1 },
-];
-
-// Component to show status for individual items
-const StatusOverlay = ({ status }: { status: string }) => {
-  if (status === "complete") return null;
-
-  const getStatusInfo = () => {
-    switch (status) {
-      case "queued":
-      case "rendering":
-        return { icon: Clock, color: "#f59e0b", text: "Processing..." };
-      case "error":
-        return { icon: AlertCircle, color: "#ef4444", text: "Error" };
-      case "canceled":
-        return { icon: AlertCircle, color: "#6b7280", text: "Canceled" };
-      default:
-        return { icon: Clock, color: "#6b7280", text: "Pending..." };
-    }
-  };
-
-  const { icon: Icon, color, text } = getStatusInfo();
-
-  return (
-    <View className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-2xl">
-      <Icon color={color} size={32} />
-      <Text className="text-white mt-2 text-sm font-medium">{text}</Text>
-      {(status === "queued" || status === "rendering") && (
-        <ActivityIndicator
-          color={color}
-          size="small"
-          style={{ marginTop: 8 }}
-        />
-      )}
-    </View>
-  );
-};
-
 export default function ShowResults() {
-  const { uri, data } = useLocalSearchParams<{ uri: string; data: string }>();
-  // const faceEdits: FaceEditResult[] = faceEditResult;
+  const { human_image, data } = useLocalSearchParams<{
+    human_image: string;
+    data: string;
+  }>();
   const faceEdits = data
     ? (JSON.parse(
         data
@@ -113,12 +68,14 @@ export default function ShowResults() {
     (async () => {
       await getEdit(faceEdits);
     })();
+    try {
+      posthog.capture("Reached show-results");
+    } catch (e) {}
     // Start visible and then auto-hide
     scheduleAutoHide();
     return () => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handle_download = async () => {

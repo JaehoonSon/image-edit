@@ -7,11 +7,11 @@ import { TypeWriter } from "~/components/ui/type-writer";
 
 const EncouragementMessage: { text: string; speed: number }[] = [
   {
-    text: "You’ve dimmed your light for too long—let your glow shine through.",
+    text: "Reveal the photo you meant to take, in one tap",
     speed: 45,
   },
   {
-    text: "See yourself in your best light, every time.",
+    text: "Make every photo count. Don't let opportunites slip.",
     speed: 50,
   },
 ];
@@ -35,7 +35,7 @@ export default function EncouragementScreen() {
   };
 
   return (
-    <View className="flex-1 items-center justify-center">
+    <View className="flex-1 items-center justify-center bg-background">
       <View className="flex-1 py-10 px-16 justify-between items-center w-full">
         {/* Center the typewriter */}
         <View className="flex-1 justify-center items-center">

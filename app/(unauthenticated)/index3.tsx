@@ -65,8 +65,8 @@ export default function IndexUnauthenticatedScreen() {
             variant="link"
             className="mt-2"
             onPress={() => {
-              router.push("/(unauthenticated)/login");
-              // router.push("/(unauthenticated)/onboarding/onboarding");
+              // router.push("/(unauthenticated)/login");
+              router.push("/(unauthenticated)/onboarding/onboarding");
             }}
           >
             <P className="text-primary text-center text-lg">

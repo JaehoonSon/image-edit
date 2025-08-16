@@ -4,6 +4,7 @@ import {
   FlatList,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { H1, Large } from "~/components/ui/typography";
 import { useCallback, useEffect, useState } from "react";
@@ -25,6 +26,9 @@ import { useGetCollection } from "~/hooks/useGetCollection";
 import { supabase } from "~/lib/supabase";
 import { FaceEditResult } from "~/hooks/useFaceEditsPreset";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
+import InstagramButton from "./reform";
+import LoadingIndicator from "~/components/LoadingIndicator";
+import SkeletonImage from "~/components/SkeletonImage";
 
 export default function IndexAuthenticatedScreen() {
   const {
@@ -32,6 +36,7 @@ export default function IndexAuthenticatedScreen() {
     loading,
     error,
     getCollectionData,
+    clearData,
   } = useGetCollection();
 
   const { getCollectionDetail } = useGetCollectionDetails();
@@ -41,8 +46,10 @@ export default function IndexAuthenticatedScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      // refetch your data here
-      await getCollectionData();
+      await Promise.all([
+        getCollectionData(new Date().toISOString()),
+        new Promise((res) => setTimeout(res, 1000)),
+      ]);
     } finally {
       setRefreshing(false);
     }
@@ -54,11 +61,6 @@ export default function IndexAuthenticatedScreen() {
     })();
   }, []);
 
-  const clicked_saved = () => {
-    playHaptic("soft");
-    router.push("/settings");
-  };
-
   const clicked_setting = () => {
     playHaptic("soft");
     router.push("/settings");
@@ -67,19 +69,10 @@ export default function IndexAuthenticatedScreen() {
   const clicked_reform = () => {
     playHaptic("soft");
     router.push("/(authenticated)/main");
-    // router.push("/(authenticated)/show-results");
   };
 
   const clicked_collection = async (collection_id: string) => {
     playHaptic("soft");
-    // const { data: collection_detail_data, error: collection_detail_error } =
-    //   await supabase
-    //     .from("image_detail")
-    //     .select(`job_id`)
-    //     .eq("collection_id", collection_id)
-    //     .not("enhanced_image_url", "is", null)
-    //     .limit(20);
-    // if (collection_detail_data == null) return;
 
     const result = await getCollectionDetail(collection_id);
 
@@ -92,7 +85,7 @@ export default function IndexAuthenticatedScreen() {
     router.push({
       pathname: "/(authenticated)/show-results",
       params: {
-        uri:
+        human_image:
           image_data.find((e) => e.collection_id === collection_id)
             ?.human_image ?? "",
         data: JSON.stringify(faceEditResult), // serialize data to string
@@ -100,9 +93,13 @@ export default function IndexAuthenticatedScreen() {
     });
   };
 
+  const load_more_data = async () => {
+    await getCollectionData(image_data[image_data.length - 1].created_at);
+  };
+
   // Gallery component
   const renderGallery = () => {
-    if (loading || refreshing) return <View></View>;
+    if ((loading || refreshing) && image_data.length == 0) return <View></View>;
     if (!image_data || image_data.length === 0) {
       return (
         <View className="flex-1 items-center justify-center gap-4">
@@ -125,7 +122,6 @@ export default function IndexAuthenticatedScreen() {
         </View>
       );
     }
-    // 1-3 images: each is full width, stacked vertically, scrollable
     return (
       <ScrollView
         className="flex-1 w-full"
@@ -142,15 +138,24 @@ export default function IndexAuthenticatedScreen() {
               activeOpacity={0.95}
             >
               <AspectRatio ratio={9 / 16} className="w-full">
-                <Image
+                {/* <Image
                   source={{ uri: img.human_image!! }}
                   className="w-full h-full rounded-lg"
                   resizeMode="cover"
-                />
+                /> */}
+                <SkeletonImage uri={img.human_image ?? ""} />
               </AspectRatio>
             </TouchableOpacity>
           </Card>
         ))}
+        {loading ? (
+          <ActivityIndicator size={20} color={"#0000ff"} />
+        ) : (
+          <Button variant={"link"} onPress={load_more_data}>
+            <Text>Load More Data</Text>
+          </Button>
+        )}
+        <View className="h-24" />
       </ScrollView>
     );
   };
@@ -160,11 +165,6 @@ export default function IndexAuthenticatedScreen() {
       <SafeAreaView className="flex-1 items-center" edges={["top"]}>
         {/* Header */}
         <View className="flex-row items-center justify-between w-full">
-          {/* <View className="">
-            <H1 className="opacity-0">Reform AI</H1>
-            <GradientText text="Reform AI" />
-            <GradientH1>Reform AI</GradientH1>
-          </View> */}
           <View className="relative items-center justify-center rounded-full">
             <Text className="text-4xl font-bold opacity-0">Reform AI </Text>
 
@@ -185,7 +185,6 @@ export default function IndexAuthenticatedScreen() {
         {/* Main app */}
         <View className="flex-1 w-full pt-4">{renderGallery()}</View>
       </SafeAreaView>
-      {/* Fixed Reform! button */}
       <View className="absolute w-full bottom-6 left-0 right-0 items-center z-50">
         <Button
           className="w-[80%] rounded-full hover:opacity-95 active:opacity-95"
@@ -194,7 +193,6 @@ export default function IndexAuthenticatedScreen() {
         >
           <H1 className="text-primary-foreground">Reform</H1>
         </Button>
-        {/* <ReformButton /> */}
       </View>
     </View>
   );

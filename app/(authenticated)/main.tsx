@@ -84,30 +84,30 @@ export default function MainApp() {
   // Image placeholder content
   const renderImageContent = () => {
     if (imageUri) {
-      console.log(imageUri);
       return (
         <View className="w-full h-full">
-          <Image
-            source={{ uri: imageUri }}
-            style={{
-              width: "100%",
-              height: "100%",
-              borderRadius: 12,
-            }}
-            placeholder={{ blurhash }}
-            contentFit="contain"
-            transition={300}
-            onError={(error) => console.log("Image Error:", error)}
-            onLoad={() => console.log("Image loaded successfully")}
-          />
-          {/* Trash icon overlay */}
-          <Pressable
-            onPress={resetImage}
-            className="absolute top-3 right-3 bg-black/50 rounded-full p-2"
-            disabled={loading}
-          >
-            <Trash2 color="#ffffff" size={20} />
-          </Pressable>
+          <View className="relative">
+            <Image
+              source={{ uri: imageUri }}
+              style={{
+                width: "100%",
+                height: "100%",
+                borderRadius: 12,
+              }}
+              placeholder={{ blurhash }}
+              contentFit="contain"
+              transition={300}
+              onError={(error) => console.log("Image Error:", error)}
+              onLoad={() => console.log("Image loaded successfully")}
+            />
+            <Pressable
+              onPress={resetImage}
+              className="absolute top-3 right-3 bg-black/50 rounded-full p-2"
+              disabled={loading}
+            >
+              <Trash2 color="#ffffff" size={20} />
+            </Pressable>
+          </View>
         </View>
       );
     }
@@ -151,10 +151,7 @@ export default function MainApp() {
           disabled={loading}
           className={`w-[98%] ${loading ? "opacity-50" : ""}`}
         >
-          <AspectRatio
-            ratio={9 / 15}
-            className="relative rounded-xl border border-gray-300"
-          >
+          <AspectRatio ratio={9 / 15} className="relative rounded-xl">
             {renderImageContent()}
             {/* Loading overlay */}
           </AspectRatio>
