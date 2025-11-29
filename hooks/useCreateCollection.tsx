@@ -2,15 +2,14 @@ import { useState, useCallback } from "react";
 import { BASE_API_ENDPOINT } from "~/config";
 import { supabase } from "~/lib/supabase";
 
-export interface FaceEditResult {
-  // preset_id: string;
-  // preset_name: string;
-  job_id: string;
+export interface CreateCollectionResult {
+  collection_id: string;
+  status: string;
 }
 
 interface UseFaceEditPresetsReturn {
   /** The array of results returned by the API (or null if none yet) */
-  data: FaceEditResult[] | null;
+  data: CreateCollectionResult | null;
   /** True while the request is in flight */
   loading: boolean;
   /** Any error message (or null if no error) */
@@ -19,19 +18,19 @@ interface UseFaceEditPresetsReturn {
    * Kick off the upload + preset call.
    * @param imageUri - local URI of the image to send
    */
-  runPresets: (imageUri: string) => Promise<void>;
+  runCollection: (imageUri: string) => Promise<void>;
 }
 
 /**
  * Hook to call your /preset-face-edit-all endpoint.
  * @param apiUrl Base URL (e.g. "https://api.example.com")
  */
-export function useFaceEditPresets(): UseFaceEditPresetsReturn {
-  const [data, setData] = useState<FaceEditResult[] | null>(null);
+export function useCreateCollection(): UseFaceEditPresetsReturn {
+  const [data, setData] = useState<CreateCollectionResult | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const runPresets = useCallback(async (imageUri: string) => {
+  const runCollection = useCallback(async (imageUri: string) => {
     setLoading(true);
     setError(null);
     setData(null);
@@ -59,14 +58,18 @@ export function useFaceEditPresets(): UseFaceEditPresetsReturn {
         },
         body: formData,
       });
+      console.log("done");
+      // console.log(await res.text());
 
       if (!res.ok) {
+        console.log("This?");
         const text = await res.text();
         throw new Error(`Server ${res.status}: ${text}`);
       }
 
-      const json = (await res.json()) as { results: FaceEditResult[] };
-      setData(json.results);
+      // const json = (await res.json()) as { results: CreateCollectionResult };
+      const raw: CreateCollectionResult = await res.json();
+      setData(raw);
     } catch (err: any) {
       setError(err.message || "Upload failed");
     } finally {
@@ -74,5 +77,5 @@ export function useFaceEditPresets(): UseFaceEditPresetsReturn {
     }
   }, []);
 
-  return { data, loading, error, runPresets };
+  return { data, loading, error, runCollection };
 }

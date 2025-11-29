@@ -6,7 +6,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import { H1, Large } from "~/components/ui/typography";
+import { H1, Large, P } from "~/components/ui/typography";
 import { useCallback, useEffect, useState } from "react";
 import { Text } from "~/components/ui/text";
 import Feather from "@expo/vector-icons/Feather";
@@ -29,6 +29,10 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import InstagramButton from "./reform";
 import LoadingIndicator from "~/components/LoadingIndicator";
 import SkeletonImage from "~/components/SkeletonImage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const PREFERENCE_KEY = "PREFERENCE_KEY";
+type DisplayMode = "grid" | "full";
 
 export default function IndexAuthenticatedScreen() {
   const {
@@ -37,17 +41,21 @@ export default function IndexAuthenticatedScreen() {
     error,
     getCollectionData,
     clearData,
+    refreshData,
   } = useGetCollection();
 
   const { getCollectionDetail } = useGetCollectionDetails();
 
   const [refreshing, setRefreshing] = useState(false);
 
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("grid");
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await Promise.all([
-        getCollectionData(new Date().toISOString()),
+        // getCollectionData(new Date().toISOString()),
+        refreshData(new Date().toISOString()),
         new Promise((res) => setTimeout(res, 1000)),
       ]);
     } finally {
@@ -57,9 +65,20 @@ export default function IndexAuthenticatedScreen() {
 
   useEffect(() => {
     (async () => {
+      const displayMode: DisplayMode =
+        ((await AsyncStorage.getItem(PREFERENCE_KEY)) as DisplayMode) || "grid";
+      setDisplayMode(displayMode);
       await getCollectionData();
     })();
   }, []);
+
+  const toggleDisplayMode = () => {
+    setDisplayMode((prev) => {
+      const next: DisplayMode = prev === "grid" ? "full" : "grid";
+      AsyncStorage.setItem(PREFERENCE_KEY, next).catch(() => {});
+      return next;
+    });
+  };
 
   const clicked_setting = () => {
     playHaptic("soft");
@@ -71,26 +90,35 @@ export default function IndexAuthenticatedScreen() {
     router.push("/(authenticated)/main");
   };
 
-  const clicked_collection = async (collection_id: string) => {
+  const clicked_collection = async (img) => {
     playHaptic("soft");
+    console.log(img);
+    if (img.status == "processing") {
+      router.push({
+        pathname: "/(authenticated)/poll-data",
+        params: {
+          human_image:
+            image_data.find((e) => e.collection_id === img.collection_id)
+              ?.human_image ?? "",
+          data: JSON.stringify({ collection_id: img.collection_id }), // serialize data to string
+        },
+      });
+    } else if (img.status == "success") {
+      const result = await getCollectionDetail(img.collection_id);
 
-    const result = await getCollectionDetail(collection_id);
-
-    const faceEditResult: FaceEditResult[] = result.map((e) => ({
-      job_id: e.job_id,
-      frame_cost: 1,
-      credits_charged: 1,
-    }));
-
-    router.push({
-      pathname: "/(authenticated)/show-results",
-      params: {
-        human_image:
-          image_data.find((e) => e.collection_id === collection_id)
-            ?.human_image ?? "",
-        data: JSON.stringify(faceEditResult), // serialize data to string
-      },
-    });
+      const faceEditResult: FaceEditResult[] = result.map((e) => ({
+        job_id: e.job_id,
+      }));
+      router.push({
+        pathname: "/(authenticated)/show-results",
+        params: {
+          human_image:
+            image_data.find((e) => e.collection_id === img.collection_id)
+              ?.human_image ?? "",
+          data: JSON.stringify(faceEditResult), // serialize data to string
+        },
+      });
+    }
   };
 
   const load_more_data = async () => {
@@ -122,41 +150,112 @@ export default function IndexAuthenticatedScreen() {
         </View>
       );
     }
+    const isGrid = displayMode === "grid";
+    const data = image_data.filter(
+      (img) => img.status && img.status !== "error"
+    );
+
     return (
-      <ScrollView
+      // <ScrollView
+      //   className="flex-1 w-full"
+      //   contentContainerStyle={{ gap: 8, paddingBottom: 16 }}
+      //   showsVerticalScrollIndicator={false}
+      //   key={isGrid ? "grid" : "full"}
+      //   refreshControl={
+      //     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      //   }
+      // >
+      //   {image_data.map((img, idx) => {
+      //     if (img.status == "error" || img.status == null) return null;
+      //     return (
+      //       <Card key={img.collection_id} className="w-full mb-0 relative">
+      //         <TouchableOpacity
+      //           onPress={() => clicked_collection(img)}
+      //           activeOpacity={0.95}
+      //           className={
+      //             img.status == "success" ? "opacity-100" : "opacity-20"
+      //           }
+      //         >
+      //           <AspectRatio
+      //             ratio={img.status == "success" ? 9 / 16 : 16 / 9}
+      //             className="w-full"
+      //           >
+      //             <SkeletonImage uri={img.human_image ?? ""} />
+      //           </AspectRatio>
+      //         </TouchableOpacity>
+      //         {img.status == "processing" && (
+      //           <View className="absolute top-5 left-5 p-2 bg-primary rounded-xl">
+      //             <P className="font-semibold text-white">Check if it's done</P>
+      //           </View>
+      //         )}
+      //       </Card>
+      //     );
+      //   })}
+
+      //   {loading ? (
+      //     <ActivityIndicator size={20} color={"#0000ff"} />
+      //   ) : (
+      //     <Button variant={"link"} onPress={load_more_data}>
+      //       <Text>Load More Data</Text>
+      //     </Button>
+      //   )}
+      //   <View className="h-24" />
+      // </ScrollView>
+      <FlatList
         className="flex-1 w-full"
+        data={data}
+        keyExtractor={(img) => img.collection_id}
+        key={isGrid ? "grid" : "full"}
+        numColumns={isGrid ? 2 : 1}
         contentContainerStyle={{ gap: 8, paddingBottom: 16 }}
+        columnWrapperStyle={isGrid ? { gap: 8 } : undefined}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {image_data.map((img, idx) => (
-          <Card key={idx} className="w-full mb-0">
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        renderItem={({ item: img }) => (
+          <Card className={`${isGrid ? "flex-1" : "w-full"} mb-0 relative`}>
             <TouchableOpacity
-              onPress={() => clicked_collection(img.collection_id)}
+              onPress={() => clicked_collection(img)}
               activeOpacity={0.95}
+              className={
+                img.status === "success" ? "opacity-100" : "opacity-20"
+              }
             >
-              <AspectRatio ratio={9 / 16} className="w-full">
-                {/* <Image
-                  source={{ uri: img.human_image!! }}
-                  className="w-full h-full rounded-lg"
-                  resizeMode="cover"
-                /> */}
-                <SkeletonImage uri={img.human_image ?? ""} />
+              <AspectRatio
+                ratio={isGrid ? 1 : img.status === "success" ? 9 / 16 : 16 / 9}
+                className="w-full"
+              >
+                <SkeletonImage
+                  uri={img.human_image ?? ""}
+                  invalidateKey={displayMode}
+                />
               </AspectRatio>
             </TouchableOpacity>
+
+            {img.status === "processing" && (
+              <View className="absolute top-5 left-5 p-2 rounded-xl">
+                {isGrid ? (
+                  <ActivityIndicator size="large" color="black" />
+                ) : (
+                  <P className="font-semibold text-white">Check if it's done</P>
+                )}
+              </View>
+            )}
           </Card>
-        ))}
-        {loading ? (
-          <ActivityIndicator size={20} color={"#0000ff"} />
-        ) : (
-          <Button variant={"link"} onPress={load_more_data}>
-            <Text>Load More Data</Text>
-          </Button>
         )}
-        <View className="h-24" />
-      </ScrollView>
+        ListFooterComponent={() => (
+          <View className="items-center">
+            {loading ? (
+              <ActivityIndicator size={20} color={"#0000ff"} />
+            ) : (
+              <Button variant="link" onPress={load_more_data}>
+                <Text>Load More Data</Text>
+              </Button>
+            )}
+            <View className="h-24" />
+          </View>
+        )}
+      />
     );
   };
 
@@ -174,6 +273,18 @@ export default function IndexAuthenticatedScreen() {
           </View>
 
           <View className="flex-row items-center gap-x-5">
+            <TouchableOpacity onPress={toggleDisplayMode}>
+              <FontAwesome5
+                name={displayMode === "grid" ? "expand" : "th-large"}
+                size={24}
+                color="black"
+                accessibilityLabel={
+                  displayMode === "grid"
+                    ? "Switch to full view"
+                    : "Switch to grid view"
+                }
+              />
+            </TouchableOpacity>
             <TouchableOpacity onPress={clicked_reform}>
               <FontAwesome5 name="plus" size={24} color="black" />
             </TouchableOpacity>

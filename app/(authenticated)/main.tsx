@@ -26,6 +26,7 @@ import { showErrorToast } from "~/components/ui/toast";
 import GradientText from "~/components/GradientText";
 import LoadingIndicator from "~/components/LoadingIndicator";
 import SpinningImage from "~/components/SpinningImage";
+import { useCreateCollection } from "~/hooks/useCreateCollection";
 
 const blurhash =
   "|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[";
@@ -35,7 +36,7 @@ export default function MainApp() {
 
   const [imageUri, setImageUri] = useState<string>("");
 
-  const { data, loading, error, runPresets } = useFaceEditPresets();
+  const { data, loading, error, runCollection } = useCreateCollection();
 
   const clicked_find_photo = async () => {
     playHaptic("soft");
@@ -43,6 +44,7 @@ export default function MainApp() {
       const result = await openGallery();
       if (!result.canceled) {
         const uri = result.assets?.[0]?.uri;
+        await Image.prefetch(uri);
         setImageUri(uri);
       }
     } catch (err) {
@@ -53,7 +55,7 @@ export default function MainApp() {
 
   const click_reform = async () => {
     playHaptic("soft");
-    await runPresets(imageUri);
+    await runCollection(imageUri);
   };
 
   const resetImage = () => {
@@ -67,10 +69,11 @@ export default function MainApp() {
 
   useEffect(() => {
     if (data) {
+      console.log("Data arrived: ", data);
       router.replace({
-        pathname: "/(authenticated)/show-results",
+        pathname: "/(authenticated)/poll-data",
         params: {
-          uri: imageUri,
+          human_image: imageUri,
           data: JSON.stringify(data), // serialize data to string
         },
       });
@@ -138,7 +141,7 @@ export default function MainApp() {
       >
         <View className="w-[97%] mb-4 flex flex-row items-center">
           <TouchableOpacity
-            className="bg-primary rounded-full p-1 mr-3"
+            className="rounded-full p-1 mr-3"
             onPress={handleBack}
           >
             <ChevronLeft />

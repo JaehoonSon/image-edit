@@ -145,7 +145,7 @@ export default function Settings() {
         <SafeAreaView className="flex-1 items-center gap-y-4" edges={["top"]}>
           <View className="flex flex-row items-center gap-x-3 mr-auto">
             <TouchableOpacity
-              className="bg-primary rounded-full p-1 items-center justify-center"
+              className="rounded-full p-1 items-center justify-center"
               onPress={router.back}
             >
               <ChevronLeft />

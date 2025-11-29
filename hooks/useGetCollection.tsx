@@ -14,6 +14,45 @@ export function useGetCollection() {
     setData([]);
   }, []);
 
+  const refreshData = useCallback(
+    async (lastEndDate: string = new Date().toISOString()) => {
+      setLoading(true);
+      setError(null);
+
+      const byCreatedDesc = (a: any, b: any) => {
+        const ad = Date.parse(a.created_at);
+        const bd = Date.parse(b.created_at);
+        if (bd !== ad) return bd - ad; // newer first
+        return String(b.id).localeCompare(String(a.id)); // tiebreaker
+      };
+
+      try {
+        const { data: newItems, error } = await supabase
+          .from("image_collection")
+          .select("*")
+          .lt("created_at", lastEndDate)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        if (error) throw error;
+        if (!newItems || newItems.length === 0) return;
+
+        setData((prev) => {
+          // merge + de-dup
+          const map = new Map(prev.map((i: any) => [i.id, i]));
+          for (const item of newItems) map.set(item.id, item);
+          // always keep correct position
+          return Array.from(map.values()).sort(byCreatedDesc);
+        });
+      } catch (err: any) {
+        setError(err.message || "Retrieval Fail");
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
   const getCollectionData = useCallback(
     async (lastEndDate: string = new Date().toISOString()) => {
       setLoading(true);
@@ -45,5 +84,5 @@ export function useGetCollection() {
     []
   );
 
-  return { data, loading, error, getCollectionData, clearData };
+  return { data, loading, error, refreshData, getCollectionData, clearData };
 }

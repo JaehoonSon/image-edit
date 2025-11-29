@@ -13,6 +13,8 @@ import { playHaptic } from "~/lib/hapticSound";
 import { makePayment } from "~/lib/payment";
 import Purchases from "react-native-purchases";
 import { posthog } from "~/lib/posthog";
+import { ImageBackground } from "expo-image";
+import GradientText from "~/components/GradientText";
 
 const PLANS = [
   { key: "weekly", label: "Weekly", price: "$4.99/mo" },
@@ -129,114 +131,133 @@ export default function Paywall() {
   }, []);
 
   return (
-    <SafeAreaView className="flex-1 bg-background text-foreground px-4">
-      <ScrollView className="flex-1">
-        {/* Header */}
+    <ImageBackground
+      source={require("~/assets/images/mesh_background.png")}
+      resizeMode="cover"
+      imageStyle={{
+        opacity: 0.3,
+        transform: [{ rotate: "-6deg" }, { scale: 1.2 }],
+      }}
+      style={{ flex: 1 }}
+    >
+      <SafeAreaView className="flex-1 text-foreground px-4">
+        <ScrollView className="flex-1">
+          {/* Header */}
 
-        {/* Plan Selector */}
+          {/* Plan Selector */}
 
-        {/* Features List */}
+          {/* Features List */}
 
-        {/* Actions */}
-        <View className="w-full mb-auto">
-          <View className="w-36 h-36 rounded-full overflow-hidden mx-auto mb-2">
-            <Image
-              source={require("~/assets/images/splash-transparent.png")}
-              className="w-full h-full"
-              resizeMode="cover" // or "contain" if you need aspect ratio
-            />
-          </View>
+          {/* Actions */}
+          <View className="w-full mb-auto">
+            <View className="w-36 h-36 rounded-full overflow-hidden mx-auto mb-2">
+              <Image
+                source={require("~/assets/images/splash-transparent.png")}
+                className="w-full h-full"
+                resizeMode="cover" // or "contain" if you need aspect ratio
+              />
+            </View>
 
-          <View className="items-center mb-4">
-            <H1 className="text-3xl font-bold">Reveal Your True Glow</H1>
-            <P className="mt-1 text-lg">
-              Upgrade to unlock every pro filter and tool
-            </P>
-          </View>
+            <View className="items-center mb-4">
+              {/* <H1 className="text-3xl font-bold">Reveal Your True Glow</H1> */}
+              <GradientText text="Reveal Your True Glow" />
+              <P className="mt-1 text-lg">
+                Upgrade to unlock every pro filter and tool
+              </P>
+            </View>
 
-          {/* <View className="">
+            {/* <View className="">
           <View className="space-y-4 bg-secondary rounded-xl"></View>
         </View> */}
-          {/* <Card className="shadow-none border-none ring-0"> */}
-          <View className="">
-            {FEATURES.map(({ icon, title, desc }, idx) => (
-              <View key={idx} className="flex-row p-4 rounded-lg items-center">
-                <View className="w-8 h-8 rounded-full bg-secondary p-1 items-center justify-center mr-3">
-                  <Check />
-                </View>
-                <View className="flex-1">
-                  <Text className="font-bold text-card-foreground text-lg">
-                    {title}
-                  </Text>
-                  <P className="mt-1 text-base text-muted-foreground">{desc}</P>
-                </View>
-              </View>
-            ))}
-          </View>
-          {/* </Card> */}
-
-          <View className="flex-row justify-center space-x-4 mt-6 mb-6 gap-x-4">
-            {PLANS.map(({ key, label, price }) => {
-              const selected = plan === key;
-              return (
-                <TouchableOpacity
-                  key={key}
-                  onPress={() => setPlan(key)}
-                  className={`flex-1 rounded-xl p-3 items-center border border-border shadow-sm shadow-foreground/1 ${
-                    selected
-                      ? "bg-primary border-primary"
-                      : "bg-muted border-border"
-                  }`}
+            {/* <Card className="shadow-none border-none ring-0"> */}
+            <View className="">
+              {FEATURES.map(({ icon, title, desc }, idx) => (
+                <View
+                  key={idx}
+                  className="flex-row p-4 rounded-lg items-center"
                 >
-                  <Text
-                    className={`text-lg font-semibold ${
-                      selected ? "text-primary-foreground" : "text-foreground"
-                    }`}
-                  >
-                    {label}
-                  </Text>
-                  <Text
-                    className={`mt-1 text-base font-medium ${
-                      selected ? "text-primary-foreground" : "text-foreground"
-                    }`}
-                  >
-                    {price}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                  <View className="w-8 h-8 rounded-full bg-secondary p-1 items-center justify-center mr-3">
+                    <Check />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="font-bold text-card-foreground text-lg">
+                      {title}
+                    </Text>
+                    <P className="mt-1 text-base text-muted-foreground">
+                      {desc}
+                    </P>
+                  </View>
+                </View>
+              ))}
+            </View>
+            {/* </Card> */}
 
-          <Button
-            className="w-full rounded-full bg-primary"
-            size="lg"
-            onPress={clicked_continue}
-          >
-            <Text className="font-semibold text-primary-foreground">
-              Continue
-            </Text>
-          </Button>
-          <TouchableOpacity className="mt-3" onPress={handle_restore_purchase}>
-            <Text className="text-center text-muted-foreground text-sm">
-              Restore Purchase
-            </Text>
-          </TouchableOpacity>
-          <View className="flex-row justify-center space-x-4 mt-4">
-            <View className="flex-row items-center">
-              <Text className="text-green-500 mr-1 text-sm">✓</Text>
-              <Text className="text-xs text-muted-foreground">
-                Cancel anytime
-              </Text>
+            <View className="flex-row justify-center space-x-4 mt-6 mb-6 gap-x-4">
+              {PLANS.map(({ key, label, price }) => {
+                const selected = plan === key;
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    onPress={() => setPlan(key)}
+                    className={`flex-1 rounded-xl p-3 items-center border border-border shadow-sm shadow-foreground/1 ${
+                      selected
+                        ? "bg-primary border-primary"
+                        : "bg-muted border-border"
+                    }`}
+                  >
+                    <Text
+                      className={`text-lg font-semibold ${
+                        selected ? "text-primary-foreground" : "text-foreground"
+                      }`}
+                    >
+                      {label}
+                    </Text>
+                    <Text
+                      className={`mt-1 text-base font-medium ${
+                        selected ? "text-primary-foreground" : "text-foreground"
+                      }`}
+                    >
+                      {price}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-            <View className="flex-row items-center">
-              <Text className="text-green-500 mr-1 text-sm">✓</Text>
-              <Text className="text-xs text-muted-foreground">
-                Auto-renew subscription
+
+            <Button
+              className="w-full rounded-full bg-primary"
+              size="lg"
+              onPress={clicked_continue}
+            >
+              <Text className="font-semibold text-primary-foreground">
+                Continue
               </Text>
+            </Button>
+            <TouchableOpacity
+              className="mt-3"
+              onPress={handle_restore_purchase}
+            >
+              <Text className="text-center text-muted-foreground text-sm">
+                Restore Purchase
+              </Text>
+            </TouchableOpacity>
+            <View className="flex-row justify-center space-x-4 mt-4">
+              <View className="flex-row items-center">
+                <Text className="text-green-500 mr-1 text-sm">✓</Text>
+                <Text className="text-xs text-muted-foreground">
+                  Cancel anytime
+                </Text>
+              </View>
+              <View className="flex-row items-center">
+                <Text className="text-green-500 mr-1 text-sm">✓</Text>
+                <Text className="text-xs text-muted-foreground">
+                  Auto-renew subscription
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }

@@ -229,7 +229,7 @@ export default function ShowResults() {
         edges={["top", "bottom"]}
       >
         <TouchableOpacity
-          className="absolute top-20 left-4 bg-primary z-20 rounded-full p-1.5 items-center"
+          className="absolute top-20 left-4 z-20 rounded-full p-1.5 items-center"
           onPress={handle_back}
         >
           <ChevronLeft />

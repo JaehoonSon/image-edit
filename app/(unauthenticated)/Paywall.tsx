@@ -1,44 +1,31 @@
 import { router } from "expo-router";
-import { CheckCheck, Check } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
-import { View, TouchableOpacity, Image, ScrollView, Alert } from "react-native";
+import { Check } from "lucide-react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  View,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent } from "~/components/ui/card";
 import { Text } from "~/components/ui/text";
 import { showErrorToast } from "~/components/ui/toast";
-import { H1, H3, P } from "~/components/ui/typography";
+import { P } from "~/components/ui/typography";
 import { useAuth } from "~/contexts/AuthProvider";
 import { playHaptic } from "~/lib/hapticSound";
-import { makePayment } from "~/lib/payment";
-import Purchases from "react-native-purchases";
+import Purchases, {
+  PurchasesPackage,
+  PurchasesOffering,
+} from "react-native-purchases";
 import { posthog } from "~/lib/posthog";
 import { ImageBackground } from "expo-image";
 import GradientText from "~/components/GradientText";
 
-const PLANS = [
-  { key: "weekly", label: "Weekly", price: "$4.99/mo" },
-  { key: "monthly", label: "Monthly", price: "$7.99/mo" },
-];
+type PlanKey = "weekly" | "monthly";
 
-// const FEATURES = [
-//   {
-//     icon: "🚀",
-//     title: "Access to broadcast",
-//     desc: "All premium articles & videos",
-//   },
-//   {
-//     icon: "📊",
-//     title: "Advanced Analytics",
-//     desc: "In-depth performance metrics",
-//   },
-//   { icon: "⚡", title: "Priority Support", desc: "24/7 customer service" },
-//   {
-//     icon: "✨",
-//     title: "Exclusive Tools",
-//     desc: "Early access to new features",
-//   },
-// ];
 const FEATURES = [
   {
     icon: "📸",
@@ -62,34 +49,111 @@ const FEATURES = [
   },
 ];
 
-const PRODUCT_IDS = ["subscription_monthly_1", "subscription_weekly_1"];
-
 export default function Paywall() {
-  const [plan, setPlan] = useState("weekly");
+  const [plan, setPlan] = useState<PlanKey | null>(null);
+  const [offering, setOffering] = useState<PurchasesOffering | null>(null);
+  const [packages, setPackages] = useState<{
+    weekly?: PurchasesPackage;
+    monthly?: PurchasesPackage;
+  }>({});
+  const [loadingPrices, setLoadingPrices] = useState(true);
+  const [purchasing, setPurchasing] = useState(false);
   const { refreshEntitlements } = useAuth();
 
-  const select_plan = async () => {
-    // await makePayment("postureai.theblucks.com_weekly");
-    // console.log(plan);
-  };
+  // Load offerings and map to weekly/monthly
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoadingPrices(true);
+        const res = await Purchases.getOfferings();
+
+        console.log("RC getOfferings():", JSON.stringify(res, null, 2));
+
+        const target = res.current ?? null;
+        setOffering(target);
+
+        const avail = target?.availablePackages ?? [];
+
+        const monthly =
+          target?.monthly ??
+          avail.find((p) => p.packageType === "MONTHLY") ??
+          avail.find((p) => /month/i.test(p.identifier));
+
+        const weekly =
+          target?.weekly ??
+          avail.find((p) => p.packageType === "WEEKLY") ??
+          avail.find((p) => /week/i.test(p.identifier));
+
+        setPackages({ weekly, monthly });
+
+        // Set initial plan to monthly if available, else weekly
+        setPlan(monthly ? "monthly" : weekly ? "weekly" : null);
+      } catch (e) {
+        console.log("offerings fetch failed", e);
+      } finally {
+        setLoadingPrices(false);
+      }
+    })();
+  }, []);
+
+  // Get available plans dynamically based on fetched packages
+  const availablePlans = useMemo(() => {
+    const plans: {
+      key: PlanKey;
+      label: string;
+      price: string | undefined;
+      pkg: PurchasesPackage;
+    }[] = [];
+    if (packages.monthly) {
+      plans.push({
+        key: "monthly",
+        label: "Monthly",
+        price: packages.monthly.product.priceString,
+        pkg: packages.monthly,
+      });
+    }
+    if (packages.weekly) {
+      plans.push({
+        key: "weekly",
+        label: "Weekly",
+        price: packages.weekly.product.priceString,
+        pkg: packages.weekly,
+      });
+    }
+    return plans;
+  }, [packages]);
 
   const clicked_continue = async () => {
     try {
-      // if (plan == "weekly") makePayment("subscription_weekly_1");
-      // else makePayment("subscription_monthly_1");
-      const product_id =
-        plan == "weekly" ? "subscription_weekly_1" : "subscription_monthly_1";
-      const info = await makePayment(product_id);
-      if (!info) throw "Error purchasing";
+      playHaptic("soft");
+      setPurchasing(true);
+
+      const selectedPkg = availablePlans.find((p) => p.key === plan)?.pkg;
+
+      if (!selectedPkg) {
+        showErrorToast("No package available. Try again later.");
+        return;
+      }
+
+      const purchaseResult = await Purchases.purchasePackage(selectedPkg);
+
+      const active = purchaseResult?.customerInfo?.entitlements?.active;
+      if (!active || !Object.keys(active).length) {
+        throw new Error("No active entitlement after purchase");
+      }
+
       await refreshEntitlements();
       try {
-        posthog.capture("Payment successful");
-      } catch (e) {}
-      playHaptic("success");
+        posthog.capture("Payment successful", { plan });
+      } catch {}
 
+      playHaptic("success");
       router.replace("/(authenticated)");
-    } catch (err) {
+    } catch (err: any) {
+      console.log("purchase error", err?.message ?? err);
       showErrorToast("Error purchasing");
+    } finally {
+      setPurchasing(false);
     }
   };
 
@@ -97,8 +161,6 @@ export default function Paywall() {
     try {
       playHaptic("soft");
       const info = await Purchases.restorePurchases();
-      console.log(info);
-
       if (info?.entitlements?.active?.Pro) {
         Alert.alert("Purchase Restored", "Your Pro access has been restored.");
       } else {
@@ -117,18 +179,20 @@ export default function Paywall() {
   };
 
   useEffect(() => {
-    (async () => {
-      await select_plan();
-    })();
-  }, [plan]);
-
-  useEffect(() => {
     try {
       posthog.capture("Reached Paywall");
     } catch (err) {
       console.error(err);
     }
   }, []);
+
+  if (!loadingPrices && availablePlans.length === 0) {
+    return (
+      <SafeAreaView className="flex-1 justify-center items-center">
+        <Text>No plans available. Please try again later.</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <ImageBackground
@@ -142,36 +206,24 @@ export default function Paywall() {
     >
       <SafeAreaView className="flex-1 text-foreground px-4">
         <ScrollView className="flex-1">
-          {/* Header */}
-
-          {/* Plan Selector */}
-
-          {/* Features List */}
-
-          {/* Actions */}
           <View className="w-full mb-auto">
             <View className="w-36 h-36 rounded-full overflow-hidden mx-auto mb-2">
               <Image
                 source={require("~/assets/images/splash-transparent.png")}
                 className="w-full h-full"
-                resizeMode="cover" // or "contain" if you need aspect ratio
+                resizeMode="cover"
               />
             </View>
 
             <View className="items-center mb-4">
-              {/* <H1 className="text-3xl font-bold">Reveal Your True Glow</H1> */}
               <GradientText text="Reveal Your True Glow" />
               <P className="mt-1 text-lg">
                 Upgrade to unlock every pro filter and tool
               </P>
             </View>
 
-            {/* <View className="">
-          <View className="space-y-4 bg-secondary rounded-xl"></View>
-        </View> */}
-            {/* <Card className="shadow-none border-none ring-0"> */}
-            <View className="">
-              {FEATURES.map(({ icon, title, desc }, idx) => (
+            <View>
+              {FEATURES.map(({ title, desc }, idx) => (
                 <View
                   key={idx}
                   className="flex-row p-4 rounded-lg items-center"
@@ -190,49 +242,66 @@ export default function Paywall() {
                 </View>
               ))}
             </View>
-            {/* </Card> */}
 
-            <View className="flex-row justify-center space-x-4 mt-6 mb-6 gap-x-4">
-              {PLANS.map(({ key, label, price }) => {
-                const selected = plan === key;
-                return (
-                  <TouchableOpacity
-                    key={key}
-                    onPress={() => setPlan(key)}
-                    className={`flex-1 rounded-xl p-3 items-center border border-border shadow-sm shadow-foreground/1 ${
-                      selected
-                        ? "bg-primary border-primary"
-                        : "bg-muted border-border"
-                    }`}
-                  >
-                    <Text
-                      className={`text-lg font-semibold ${
-                        selected ? "text-primary-foreground" : "text-foreground"
-                      }`}
+            {availablePlans.length > 0 && (
+              <View className="flex-row justify-center space-x-4 mt-6 mb-6 gap-x-4">
+                {availablePlans.map(({ key, label, price }) => {
+                  const selected = plan === key;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      onPress={() => setPlan(key)}
+                      disabled={loadingPrices}
+                      className={`flex-1 rounded-xl p-3 items-center border border-border shadow-sm shadow-foreground/1 ${
+                        selected
+                          ? "bg-primary border-primary"
+                          : "bg-muted border-border"
+                      } ${loadingPrices ? "opacity-70" : ""}`}
                     >
-                      {label}
-                    </Text>
-                    <Text
-                      className={`mt-1 text-base font-medium ${
-                        selected ? "text-primary-foreground" : "text-foreground"
-                      }`}
-                    >
-                      {price}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                      <Text
+                        className={`text-lg font-semibold ${
+                          selected
+                            ? "text-primary-foreground"
+                            : "text-foreground"
+                        }`}
+                      >
+                        {label}
+                      </Text>
+                      <Text
+                        className={`mt-1 text-base font-medium ${
+                          selected
+                            ? "text-primary-foreground"
+                            : "text-foreground"
+                        }`}
+                      >
+                        {loadingPrices ? "Loading…" : price}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
 
             <Button
               className="w-full rounded-full bg-primary"
               size="lg"
               onPress={clicked_continue}
+              disabled={
+                purchasing ||
+                loadingPrices ||
+                !plan ||
+                !availablePlans.find((p) => p.key === plan)
+              }
             >
-              <Text className="font-semibold text-primary-foreground">
-                Continue
-              </Text>
+              {purchasing ? (
+                <ActivityIndicator />
+              ) : (
+                <Text className="font-semibold text-primary-foreground">
+                  Continue
+                </Text>
+              )}
             </Button>
+
             <TouchableOpacity
               className="mt-3"
               onPress={handle_restore_purchase}
@@ -241,6 +310,7 @@ export default function Paywall() {
                 Restore Purchase
               </Text>
             </TouchableOpacity>
+
             <View className="flex-row justify-center space-x-4 mt-4">
               <View className="flex-row items-center">
                 <Text className="text-green-500 mr-1 text-sm">✓</Text>
@@ -255,6 +325,12 @@ export default function Paywall() {
                 </Text>
               </View>
             </View>
+
+            {!!offering?.identifier && (
+              <Text className="text-center text-muted-foreground text-xs mt-4">
+                Offering: {offering.identifier}
+              </Text>
+            )}
           </View>
         </ScrollView>
       </SafeAreaView>
