@@ -265,10 +265,10 @@ export default function IndexAuthenticatedScreen() {
         {/* Header */}
         <View className="flex-row items-center justify-between w-full">
           <View className="relative items-center justify-center rounded-full">
-            <Text className="text-4xl font-bold opacity-0">Reform AI </Text>
+            <Text className="text-4xl font-bold opacity-0">Elysia AI </Text>
 
             <View className="absolute inset-0 items-center justify-center mt-6">
-              <GradientText text="Reform AI" fontSize={32} />
+              <GradientText text="Elysia AI" fontSize={32} />
             </View>
           </View>
 
