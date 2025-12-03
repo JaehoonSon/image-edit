@@ -18,7 +18,7 @@
       "appStoreUrl": "https://apps.apple.com/us/app/elysia-photo-glow/id6749180620",
       "usesAppleSignIn": true,
       "supportsTablet": false,
-      "buildeNumber": "2",
+      "buildNumber": "2",
       "bundleIdentifier": "com.theblucks.glowly",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -46,7 +46,18 @@
       "expo-router",
       "expo-apple-authentication",
       "expo-video",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 21
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

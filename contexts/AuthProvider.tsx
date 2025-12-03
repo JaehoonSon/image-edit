@@ -4,12 +4,15 @@ import React, {
   useEffect,
   useMemo,
   useState,
-  useCallback,
 } from "react";
 import { supabase } from "~/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import * as AppleAuthentication from "expo-apple-authentication";
-import Purchases, { LOG_LEVEL, CustomerInfo } from "react-native-purchases";
+import {
+  useUser,
+  useSuperwallEvents,
+  SubscriptionStatus,
+} from "expo-superwall";
 import { posthog } from "~/lib/posthog";
 
 interface AuthContextType {
@@ -23,64 +26,64 @@ interface AuthContextType {
   hasEntitlement: boolean;
   isEntitlementLoading: boolean;
   refreshEntitlements: () => Promise<void>;
-
-  // Optional: expose full RC info if you ever need billing dates, etc.
-  customerInfo: CustomerInfo | null;
+  refresh: () => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// TODO: set this to your RevenueCat entitlement identifier
-const ENTITLEMENT_ID = "Pro";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // RevenueCat state
-  const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
-  const [isEntitlementLoading, setIsEntitlementLoading] = useState(true);
+  // Superwall hooks
+  const {
+    identify,
+    signOut,
+    subscriptionStatus,
+    refresh,
+    setSubscriptionStatus,
+  } = useUser();
 
-  const hasEntitlement = !!customerInfo?.entitlements?.active?.[ENTITLEMENT_ID];
+  // We can use local state to track entitlement if we want to react to events,
+  // but subscriptionStatus from useUser is already reactive.
+  // However, the user asked to use useSuperwallEvents.onSubscriptionStatusChange.
+  // We can use that to log or trigger side effects, or update a local state if subscriptionStatus isn't enough.
+  // But typically subscriptionStatus from useUser is the source of truth.
+  // Let's rely on subscriptionStatus for the value, and use the event for logging/side-effects as requested.
 
-  // ----- RevenueCat configure + listener -----
-  useEffect(() => {
-    // Initial fetch for anonymous/boot state
-    (async () => {
-      await refreshEntitlements();
-    })();
+  useSuperwallEvents({
+    onLog: (log) => {
+      console.log("Superwall log:", log);
+    },
+    onSubscriptionStatusChange: async (status) => {
+      console.log("Superwall subscription status changed:", status);
 
-    // Keep in sync on any purchase/restore/cancellation
-    const onUpdate = (info: CustomerInfo) => {
-      setCustomerInfo(info);
-      setIsEntitlementLoading(false);
-    };
-    // Some versions return an unsubscribe function; others require explicit remove.
-    const maybeUnsubscribe = Purchases.addCustomerInfoUpdateListener(
-      onUpdate
-    ) as (() => void) | void;
-
-    return () => {
-      if (typeof maybeUnsubscribe === "function") {
-        maybeUnsubscribe();
+      // If status changed to ACTIVE, payment was successful
+      if (status.status === "ACTIVE") {
+        try {
+          posthog.capture("Payment successful");
+        } catch (e) {
+          console.error("Failed to capture posthog event:", e);
+        }
+        // Navigation is handled in the Paywall component via useEffect
       }
-      // If your version exposes a remove API, you could instead:
-      // Purchases.removeCustomerInfoUpdateListener?.(onUpdate);
-    };
-  }, []);
 
-  // Helper to fetch current entitlements on demand
-  const refreshEntitlements = useCallback(async () => {
-    try {
-      setIsEntitlementLoading(true);
-      const info = await Purchases.getCustomerInfo();
-      setCustomerInfo(info);
-    } catch (err) {
-      console.warn("Failed to fetch RevenueCat customer info", err);
-    } finally {
-      setIsEntitlementLoading(false);
-    }
-  }, []);
+      // Ensure we have the latest data
+      await refresh();
+    },
+  });
+
+  const hasEntitlement = subscriptionStatus?.status === "ACTIVE";
+  const isEntitlementLoading =
+    subscriptionStatus?.status === "UNKNOWN" ||
+    subscriptionStatus === undefined;
+
+  // Debug: Log subscription status changes
+  useEffect(() => {
+    console.log("=== Subscription Status Changed ===");
+    console.log("subscriptionStatus:", subscriptionStatus);
+    console.log("hasEntitlement:", subscriptionStatus?.status === "ACTIVE");
+  }, [subscriptionStatus]);
 
   // ----- Supabase session boot + listener -----
   useEffect(() => {
@@ -103,39 +106,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Link/unlink RevenueCat identity whenever the app user changes
+  // Link/unlink Superwall identity whenever the app user changes
   useEffect(() => {
     (async () => {
       try {
         if (user?.id) {
-          console.log("Logging in");
-          await Purchases.logIn(user.id);
+          console.log("Identifying with Superwall:", user.id);
+          await identify(user.id);
+
+          // Only set to INACTIVE if status is UNKNOWN (first launch)
+          // Don't override if user already has ACTIVE subscription
+          if (
+            subscriptionStatus?.status === "UNKNOWN" ||
+            subscriptionStatus === undefined
+          ) {
+            console.log("Setting initial subscription status to INACTIVE");
+            await setSubscriptionStatus({ status: "INACTIVE" });
+          } else {
+            console.log(
+              "Keeping existing subscription status:",
+              subscriptionStatus?.status
+            );
+          }
         } else {
+          // We don't necessarily sign out here because we might want to keep anonymous user?
+          // But the user request said: "identify user based on my supabase user id, sign then out"
+          // The example showed: await identify(user.id); signOut(); which is contradictory or sequential?
+          // "identify user based on my supabase user id, sign then out, and update entitlement."
+          // Wait, "sign then out" might mean "sign them out" (typo) or "sign out" on logout.
+          // The example:
+          // const { identify, signOut, subscriptionStatus } = useUser();
+          // await identify(user.id);
+          // signOut();
+          //
+          // I assume they mean: call identify when logging in, call signOut when logging out.
         }
       } catch (err) {
-        console.warn("RevenueCat logIn/logOut failed", err);
-      } finally {
-        // Always refresh after identity change
-        await refreshEntitlements();
+        console.warn("Superwall identify failed", err);
       }
     })();
-  }, [user?.id, refreshEntitlements]);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      // console.log("--AUTH--", user, customerInfo, hasEntitlement);
-      // console.log("--AUTH--");
-      // console.log("Has user, ", !!user);
-      // console.log("Customer info", customerInfo);
-      // console.log("hasEntitlement", hasEntitlement);
-    }, 5000);
-    return () => clearInterval(id);
-  }, [user, customerInfo, hasEntitlement]);
+  }, [user?.id, identify, setSubscriptionStatus]);
 
   // ----- Auth actions -----
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
-    await Purchases.logOut();
+    await signOut();
     posthog.reset();
     if (error) throw error;
   };
@@ -157,8 +172,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
     const id = await data.user.id;
     posthog.identify(id, { email: data.user.email ?? "" });
-    await Purchases.logIn(id);
-    await refreshEntitlements();
+
+    // Identify with Superwall
+    await identify(id);
+    // Set default status to INACTIVE (Superwall will update if user has subscription)
+    await setSubscriptionStatus({ status: "INACTIVE" });
   };
 
   // ----- Memoized context value -----
@@ -172,19 +190,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       hasEntitlement,
       isEntitlementLoading,
-      refreshEntitlements,
-
-      customerInfo,
+      // Superwall handles refreshing automatically, but we can expose a no-op or actual refresh if available
+      refreshEntitlements: async () => {
+        try {
+          await refresh();
+        } catch (e) {
+          console.warn("Failed to refresh Superwall user", e);
+        }
+      },
+      refresh, // Expose refresh directly
     }),
     [
       user,
       isLoading,
       hasEntitlement,
       isEntitlementLoading,
-      customerInfo,
       logout,
       signInApple,
-      refreshEntitlements,
+      refresh, // Add refresh to dependency array
     ]
   );
 

@@ -11,10 +11,14 @@ import { supabase } from "~/lib/supabase";
 import { useAuth } from "~/contexts/AuthProvider";
 
 export default function Login() {
-  const { signInApple, hasEntitlement } = useAuth();
+  const { signInApple, hasEntitlement, user } = useAuth();
 
   const handleLogin = async () => {
     try {
+      if (user) {
+        router.replace("/(unauthenticated)/Paywall");
+        return;
+      }
       await signInApple();
 
       if (hasEntitlement) router.replace("/(authenticated)");
