@@ -114,38 +114,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log("Identifying with Superwall:", user.id);
           await identify(user.id);
 
-          // Only set to INACTIVE if status is UNKNOWN (first launch)
-          // Don't override if user already has ACTIVE subscription
-          if (
-            subscriptionStatus?.status === "UNKNOWN" ||
-            subscriptionStatus === undefined
-          ) {
-            console.log("Setting initial subscription status to INACTIVE");
+          // Refresh to get latest subscription status from Superwall/Apple
+          // refresh() is the proper way - it queries StoreKit and updates status
+          const refreshedStatus = await refresh();
+          console.log("Refreshed subscription status:", refreshedStatus);
+          
+          // After refresh, if status is still UNKNOWN, set to INACTIVE
+          // This allows paywalls to show for users without subscriptions
+          // 
+          // Why this is safe:
+          // - refresh() queries Apple's StoreKit for current entitlements
+          // - If user has active subscription, refresh() will set status to ACTIVE
+          // - If refresh() completes and status is still UNKNOWN, user has no subscription
+          // - Setting INACTIVE allows paywalls to be presented
+          if (refreshedStatus?.status === "UNKNOWN" || refreshedStatus === undefined) {
+            console.log("Status still UNKNOWN after refresh, setting to INACTIVE");
             await setSubscriptionStatus({ status: "INACTIVE" });
-          } else {
-            console.log(
-              "Keeping existing subscription status:",
-              subscriptionStatus?.status
-            );
           }
-        } else {
-          // We don't necessarily sign out here because we might want to keep anonymous user?
-          // But the user request said: "identify user based on my supabase user id, sign then out"
-          // The example showed: await identify(user.id); signOut(); which is contradictory or sequential?
-          // "identify user based on my supabase user id, sign then out, and update entitlement."
-          // Wait, "sign then out" might mean "sign them out" (typo) or "sign out" on logout.
-          // The example:
-          // const { identify, signOut, subscriptionStatus } = useUser();
-          // await identify(user.id);
-          // signOut();
-          //
-          // I assume they mean: call identify when logging in, call signOut when logging out.
         }
       } catch (err) {
         console.warn("Superwall identify failed", err);
       }
     })();
-  }, [user?.id, identify, setSubscriptionStatus]);
+  }, [user?.id, identify, refresh, setSubscriptionStatus]);
 
   // ----- Auth actions -----
   const logout = async () => {
@@ -173,10 +164,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const id = await data.user.id;
     posthog.identify(id, { email: data.user.email ?? "" });
 
-    // Identify with Superwall
+    // Identify with Superwall and refresh to get latest subscription status
+    // The useEffect will also run when user changes, but this ensures
+    // immediate identification during the sign-in flow
     await identify(id);
-    // Set default status to INACTIVE (Superwall will update if user has subscription)
-    await setSubscriptionStatus({ status: "INACTIVE" });
+    await refresh();
   };
 
   // ----- Memoized context value -----

@@ -11,20 +11,18 @@ import { supabase } from "~/lib/supabase";
 import { useAuth } from "~/contexts/AuthProvider";
 
 export default function Login() {
-  const { signInApple, hasEntitlement, user } = useAuth();
+  const { signInApple } = useAuth();
 
   const handleLogin = async () => {
     try {
-      if (user) {
-        router.replace("/(unauthenticated)/Paywall");
-        return;
-      }
       await signInApple();
-
-      if (hasEntitlement) router.replace("/(authenticated)");
-      else {
-        router.replace("/onboarding/onboarding");
-      }
+      // Don't manually navigate here!
+      // Stack.Protected guards in _layout.tsx will automatically route based on:
+      // - isAuthenticated && hasEntitlement → authenticated routes
+      // - Otherwise → unauthenticated routes (paywall/onboarding)
+      // 
+      // After signInApple completes, the auth state updates, which triggers
+      // a re-render of _layout.tsx and the guards handle navigation.
     } catch (err) {
       showErrorToast("Error logging in");
     }

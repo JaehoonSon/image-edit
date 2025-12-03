@@ -16,7 +16,10 @@ export default function SignUp() {
   const handleLogin = async () => {
     try {
       await signInApple();
-      router.replace("/onboarding/onboarding");
+      // Don't manually navigate here!
+      // Stack.Protected guards in _layout.tsx will automatically route based on:
+      // - isAuthenticated && hasEntitlement → authenticated routes  
+      // - Otherwise → unauthenticated routes (paywall/onboarding)
     } catch (err) {
       showErrorToast("Error Signing in");
     }
