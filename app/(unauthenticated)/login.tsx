@@ -16,13 +16,10 @@ export default function Login() {
   const handleLogin = async () => {
     try {
       await signInApple();
-      // Don't manually navigate here!
-      // Stack.Protected guards in _layout.tsx will automatically route based on:
-      // - isAuthenticated && hasEntitlement → authenticated routes
-      // - Otherwise → unauthenticated routes (paywall/onboarding)
-      // 
-      // After signInApple completes, the auth state updates, which triggers
-      // a re-render of _layout.tsx and the guards handle navigation.
+      // After sign-in, navigate to onboarding
+      // If user has entitlement, the layout guards will redirect to authenticated
+      // If user has no entitlement, they'll see the onboarding flow
+      router.replace("/onboarding/onboarding");
     } catch (err) {
       showErrorToast("Error logging in");
     }

@@ -34,6 +34,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSigningIn, setIsSigningIn] = useState(false); // Track sign-in in progress
 
   // Superwall hooks
   const {
@@ -52,9 +53,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Let's rely on subscriptionStatus for the value, and use the event for logging/side-effects as requested.
 
   useSuperwallEvents({
-    onLog: (log) => {
-      console.log("Superwall log:", log);
-    },
+    // onLog: (log) => {
+    //   console.log("Superwall log:", log);
+    // },
     onSubscriptionStatusChange: async (status) => {
       console.log("Superwall subscription status changed:", status);
 
@@ -80,10 +81,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Debug: Log subscription status changes
   useEffect(() => {
-    console.log("=== Subscription Status Changed ===");
-    console.log("subscriptionStatus:", subscriptionStatus);
-    console.log("hasEntitlement:", subscriptionStatus?.status === "ACTIVE");
-  }, [subscriptionStatus]);
+    console.log("=== Auth State Debug ===");
+    console.log("user:", user?.id ?? "null");
+    console.log("subscriptionStatus:", subscriptionStatus?.status);
+    console.log("hasEntitlement:", hasEntitlement);
+    console.log("isEntitlementLoading:", isEntitlementLoading);
+    console.log("========================");
+  }, [subscriptionStatus, user, hasEntitlement, isEntitlementLoading]);
 
   // ----- Supabase session boot + listener -----
   useEffect(() => {
@@ -114,68 +118,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log("Identifying with Superwall:", user.id);
           await identify(user.id);
 
-          // Refresh to get latest subscription status from Superwall/Apple
-          // refresh() is the proper way - it queries StoreKit and updates status
-          const refreshedStatus = await refresh();
-          console.log("Refreshed subscription status:", refreshedStatus);
-          
-          // After refresh, if status is still UNKNOWN, set to INACTIVE
-          // This allows paywalls to show for users without subscriptions
-          // 
-          // Why this is safe:
-          // - refresh() queries Apple's StoreKit for current entitlements
-          // - If user has active subscription, refresh() will set status to ACTIVE
-          // - If refresh() completes and status is still UNKNOWN, user has no subscription
-          // - Setting INACTIVE allows paywalls to be presented
-          if (refreshedStatus?.status === "UNKNOWN" || refreshedStatus === undefined) {
-            console.log("Status still UNKNOWN after refresh, setting to INACTIVE");
-            await setSubscriptionStatus({ status: "INACTIVE" });
-          }
+          // Trigger refresh - Superwall will sync with StoreKit and
+          // automatically fire onSubscriptionStatusChange when ready
+          console.log("Triggering refresh to sync with StoreKit...");
+          await refresh();
+          // Don't manually set subscription status here - let Superwall handle it
+          // The subscriptionStatus hook will update when Superwall fires the event
         }
       } catch (err) {
         console.warn("Superwall identify failed", err);
       }
     })();
-  }, [user?.id, identify, refresh, setSubscriptionStatus]);
+  }, [user?.id, identify, refresh]);
 
   // ----- Auth actions -----
   const logout = async () => {
-    const { error } = await supabase.auth.signOut();
+    console.log("Logging out...");
+
+    // First, reset Superwall's subscription status to INACTIVE
+    // This clears the cached subscription status before signOut
+    await setSubscriptionStatus({ status: "INACTIVE" });
+    console.log("Set subscription status to INACTIVE");
+
+    // Sign out from Superwall (clears user identity and cached data)
     await signOut();
-    posthog.reset();
+    console.log("Signed out from Superwall");
+
+    // Sign out from Supabase
+    const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    console.log("Signed out from Supabase");
+
+    // Reset PostHog
+    posthog.reset();
+    console.log("Logout complete");
   };
 
   const signInApple = async () => {
-    const cred = await AppleAuthentication.signInAsync({
-      requestedScopes: [
-        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-        AppleAuthentication.AppleAuthenticationScope.EMAIL,
-      ],
-    });
+    setIsSigningIn(true); // Start signing in - prevents premature redirects
 
-    if (!cred.identityToken) throw new Error("No identityToken.");
+    try {
+      const cred = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
 
-    const { data, error } = await supabase.auth.signInWithIdToken({
-      provider: "apple",
-      token: cred.identityToken,
-    });
-    if (error) throw error;
-    const id = await data.user.id;
-    posthog.identify(id, { email: data.user.email ?? "" });
+      if (!cred.identityToken) throw new Error("No identityToken.");
 
-    // Identify with Superwall and refresh to get latest subscription status
-    // The useEffect will also run when user changes, but this ensures
-    // immediate identification during the sign-in flow
-    await identify(id);
-    await refresh();
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: "apple",
+        token: cred.identityToken,
+      });
+      if (error) throw error;
+      const id = await data.user.id;
+      posthog.identify(id, { email: data.user.email ?? "" });
+
+      // Identify with Superwall
+      await identify(id);
+
+      // Trigger refresh - Superwall will sync with StoreKit and
+      // automatically update subscriptionStatus when ready
+      console.log("Triggering refresh to sync with StoreKit after sign in...");
+      await refresh();
+      // Don't manually set subscription status - let Superwall handle it
+      // The subscriptionStatus hook will update when Superwall fires the event
+    } finally {
+      setIsSigningIn(false); // Done signing in
+    }
   };
 
   // ----- Memoized context value -----
   const value = useMemo<AuthContextType>(
     () => ({
       isAuthenticated: !!user,
-      isLoading,
+      isLoading: isLoading || isSigningIn, // Include signing in as loading state
       user,
       logout,
       signInApple,
@@ -195,6 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [
       user,
       isLoading,
+      isSigningIn,
       hasEntitlement,
       isEntitlementLoading,
       logout,

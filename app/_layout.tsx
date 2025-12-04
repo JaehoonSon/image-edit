@@ -57,13 +57,25 @@ function AppContent() {
 
   const { isAuthenticated, isLoading, hasEntitlement } = useAuth();
 
+  // Debug: Log auth state for routing decisions
+  console.log("=== Root Layout Routing ===");
+  console.log("isAuthenticated:", isAuthenticated);
+  console.log("hasEntitlement:", hasEntitlement);
+  console.log("isLoading:", isLoading);
+  console.log("Show authenticated:", isAuthenticated && hasEntitlement);
+  console.log(
+    "Show unauthenticated:",
+    !isAuthenticated || (isAuthenticated && !hasEntitlement)
+  );
+  console.log("===========================");
+
   return (
     <ThemeProvider value={isDarkColorScheme ? LIGHT_THEME : LIGHT_THEME}>
       <StatusBar style={isDarkColorScheme ? "light" : "light"} />
       <Stack screenOptions={{ headerShown: false, animation: "none" }}>
         <Stack.Protected guard={isAuthenticated && hasEntitlement}>
           <Stack.Screen
-            name="/(authenticated)"
+            name="(authenticated)"
             options={{ headerRight: () => <ThemeToggle /> }}
           />
         </Stack.Protected>
@@ -71,7 +83,7 @@ function AppContent() {
           guard={!isAuthenticated || (isAuthenticated && !hasEntitlement)}
         >
           <Stack.Screen
-            name="/(unauthenticated)"
+            name="(unauthenticated)"
             options={{ headerShown: false }}
           />
         </Stack.Protected>
