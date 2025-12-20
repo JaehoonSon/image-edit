@@ -9,7 +9,13 @@ import {
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as React from "react";
-import { Appearance, Platform, View, Text } from "react-native";
+import {
+  Appearance,
+  Platform,
+  View,
+  Text,
+  ActivityIndicator,
+} from "react-native";
 import { NAV_THEME } from "~/lib/constants";
 import { useColorScheme } from "~/lib/useColorScheme";
 import { PortalHost } from "@rn-primitives/portal";
@@ -19,8 +25,12 @@ import { AuthProvider, useAuth } from "~/contexts/AuthProvider";
 import { SplashScreenController } from "./splash";
 import Toast from "react-native-toast-message";
 import { toastConfig } from "~/components/ui/toast";
-import Purchases from "react-native-purchases";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import {
+  SuperwallLoaded,
+  SuperwallLoading,
+  SuperwallProvider,
+} from "expo-superwall";
 
 const LIGHT_THEME: Theme = {
   ...DefaultTheme,
@@ -47,14 +57,17 @@ function AppContent() {
 
   const { isAuthenticated, isLoading, hasEntitlement } = useAuth();
 
-  React.useEffect(() => {
-    Purchases.setLogLevel(Purchases.LOG_LEVEL.DEBUG);
-    if (Platform.OS === "ios") {
-      Purchases.configure({
-        apiKey: "appl_JsYQxXXawrBgZjjxoWIGnSZZXUP",
-      });
-    }
-  }, []);
+  // Debug: Log auth state for routing decisions
+  console.log("=== Root Layout Routing ===");
+  console.log("isAuthenticated:", isAuthenticated);
+  console.log("hasEntitlement:", hasEntitlement);
+  console.log("isLoading:", isLoading);
+  console.log("Show authenticated:", isAuthenticated && hasEntitlement);
+  console.log(
+    "Show unauthenticated:",
+    !isAuthenticated || (isAuthenticated && !hasEntitlement)
+  );
+  console.log("===========================");
 
   return (
     <ThemeProvider value={isDarkColorScheme ? LIGHT_THEME : LIGHT_THEME}>
@@ -62,7 +75,7 @@ function AppContent() {
       <Stack screenOptions={{ headerShown: false, animation: "none" }}>
         <Stack.Protected guard={isAuthenticated && hasEntitlement}>
           <Stack.Screen
-            name="/(authenticated)"
+            name="(authenticated)"
             options={{ headerRight: () => <ThemeToggle /> }}
           />
         </Stack.Protected>
@@ -70,7 +83,7 @@ function AppContent() {
           guard={!isAuthenticated || (isAuthenticated && !hasEntitlement)}
         >
           <Stack.Screen
-            name="/(unauthenticated)"
+            name="(unauthenticated)"
             options={{ headerShown: false }}
           />
         </Stack.Protected>
@@ -84,13 +97,28 @@ export default function RootLayout() {
   usePlatformSpecificSetup();
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <SplashScreenController />
-        <AppContent />
-        <Toast config={toastConfig} />
-      </AuthProvider>
-    </GestureHandlerRootView>
+    <SuperwallProvider
+      apiKeys={{ ios: "pk_HuvhusmZ7q4DQUC5dCOwF" /* android: API_KEY */ }}
+      // options={{
+      //   logging: {
+      //     level: __DEV__ ? "debug" : "error", // Verbose logging in dev
+      //   },
+      // }}
+    >
+      <SuperwallLoading>
+        <ActivityIndicator style={{ flex: 1 }} />
+      </SuperwallLoading>
+
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <AuthProvider>
+          <SplashScreenController />
+          <SuperwallLoaded>
+            <AppContent />
+          </SuperwallLoaded>
+          <Toast config={toastConfig} />
+        </AuthProvider>
+      </GestureHandlerRootView>
+    </SuperwallProvider>
   );
 }
 

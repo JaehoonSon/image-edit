@@ -1,23 +1,18 @@
 import { Text } from "react-native";
-import { Redirect, Stack } from "expo-router";
+import { Stack } from "expo-router";
 import { useAuth } from "~/contexts/AuthProvider";
 import LoadingScreen from "../Loading";
 
 export default function UnAuthenticatedLayout() {
-  const { isAuthenticated, isLoading, hasEntitlement, isEntitlementLoading } =
-    useAuth();
+  const { isLoading, isEntitlementLoading } = useAuth();
 
-  // You can keep the splash screen open, or render a loading screen like we do here.
+  // Show loading screen while auth or entitlement status is being determined
   if (isLoading || isEntitlementLoading) {
-    // return <Text>Loading...</Text>;
     return <LoadingScreen />;
   }
 
-  if (isAuthenticated && hasEntitlement) {
-    return <Redirect href="/(authenticated)" />;
-  }
-
-  // This layout can be deferred because it's not the root layout.
+  // Stack.Protected in root _layout.tsx handles routing based on auth/entitlement
+  // This layout just renders the unauthenticated screens
   return (
     <Stack screenOptions={{ headerShown: false, animation: "default" }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />

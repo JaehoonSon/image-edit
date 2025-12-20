@@ -31,11 +31,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "~/lib/supabase";
 import { playHaptic } from "~/lib/hapticSound";
 import { appMetadata } from "~/config";
-import Purchases from "react-native-purchases";
 import { router } from "expo-router";
+import { useUser } from "expo-superwall";
 
 export default function Settings() {
   const { user, logout } = useAuth();
+  const { subscriptionStatus } = useUser();
 
   const handle_dev = async () => {
     // const products = await list_all_products();
@@ -60,40 +61,19 @@ export default function Settings() {
     playHaptic("soft");
 
     try {
-      const customerInfo = await Purchases.getCustomerInfo();
-      const proEntitlement = customerInfo.entitlements.active["Pro"];
+      const isActive = subscriptionStatus?.status === "ACTIVE";
 
-      if (proEntitlement) {
-        // expirationDate is string | null
-        let expiryLabel: string;
-
-        if (proEntitlement.expirationDate) {
-          // safe to call new Date(...) because it's now a string
-          expiryLabel = new Date(
-            proEntitlement.expirationDate
-          ).toLocaleDateString();
-        } else {
-          expiryLabel = "Unknown"; // or whatever fallback you prefer
-        }
-
-        const managementURL = customerInfo.managementURL;
-        Alert.alert(
-          "Pro Subscription",
-          `Your Pro subscription is active and renews on ${expiryLabel}.`,
-          [
-            { text: "Close", style: "cancel" },
-            {
-              text: "Manage Subscription",
-              onPress: () => {
-                if (managementURL) {
-                  Linking.openURL(managementURL);
-                } else {
-                  showErrorToast("Unable to open subscription manager");
-                }
-              },
+      if (isActive) {
+        Alert.alert("Pro Subscription", "Your Pro subscription is active.", [
+          { text: "Close", style: "cancel" },
+          {
+            text: "Manage Subscription",
+            onPress: () => {
+              // Opens Apple's subscription management page
+              Linking.openURL("https://apps.apple.com/account/subscriptions");
             },
-          ]
-        );
+          },
+        ]);
       } else {
         Alert.alert(
           "Pro Subscription",
@@ -101,6 +81,7 @@ export default function Settings() {
         );
       }
     } catch (err) {
+      console.error("Error managing subscription:", err);
       showErrorToast("Error Managing Subscription");
     }
   };

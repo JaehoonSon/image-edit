@@ -11,16 +11,15 @@ import { supabase } from "~/lib/supabase";
 import { useAuth } from "~/contexts/AuthProvider";
 
 export default function Login() {
-  const { signInApple, hasEntitlement } = useAuth();
+  const { signInApple } = useAuth();
 
   const handleLogin = async () => {
     try {
       await signInApple();
-
-      if (hasEntitlement) router.replace("/(authenticated)");
-      else {
-        router.replace("/onboarding/onboarding");
-      }
+      // After sign-in, navigate to onboarding
+      // If user has entitlement, the layout guards will redirect to authenticated
+      // If user has no entitlement, they'll see the onboarding flow
+      router.replace("/onboarding/onboarding");
     } catch (err) {
       showErrorToast("Error logging in");
     }

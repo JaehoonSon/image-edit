@@ -4,12 +4,15 @@ import React, {
   useEffect,
   useMemo,
   useState,
-  useCallback,
 } from "react";
 import { supabase } from "~/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import * as AppleAuthentication from "expo-apple-authentication";
-import Purchases, { LOG_LEVEL, CustomerInfo } from "react-native-purchases";
+import {
+  useUser,
+  useSuperwallEvents,
+  SubscriptionStatus,
+} from "expo-superwall";
 import { posthog } from "~/lib/posthog";
 
 interface AuthContextType {
@@ -23,64 +26,68 @@ interface AuthContextType {
   hasEntitlement: boolean;
   isEntitlementLoading: boolean;
   refreshEntitlements: () => Promise<void>;
-
-  // Optional: expose full RC info if you ever need billing dates, etc.
-  customerInfo: CustomerInfo | null;
+  refresh: () => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// TODO: set this to your RevenueCat entitlement identifier
-const ENTITLEMENT_ID = "Pro";
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSigningIn, setIsSigningIn] = useState(false); // Track sign-in in progress
 
-  // RevenueCat state
-  const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
-  const [isEntitlementLoading, setIsEntitlementLoading] = useState(true);
+  // Superwall hooks
+  const {
+    identify,
+    signOut,
+    subscriptionStatus,
+    refresh,
+    setSubscriptionStatus,
+  } = useUser();
 
-  const hasEntitlement = !!customerInfo?.entitlements?.active?.[ENTITLEMENT_ID];
+  // We can use local state to track entitlement if we want to react to events,
+  // but subscriptionStatus from useUser is already reactive.
+  // However, the user asked to use useSuperwallEvents.onSubscriptionStatusChange.
+  // We can use that to log or trigger side effects, or update a local state if subscriptionStatus isn't enough.
+  // But typically subscriptionStatus from useUser is the source of truth.
+  // Let's rely on subscriptionStatus for the value, and use the event for logging/side-effects as requested.
 
-  // ----- RevenueCat configure + listener -----
-  useEffect(() => {
-    // Initial fetch for anonymous/boot state
-    (async () => {
-      await refreshEntitlements();
-    })();
+  useSuperwallEvents({
+    // onLog: (log) => {
+    //   console.log("Superwall log:", log);
+    // },
+    onSubscriptionStatusChange: async (status) => {
+      console.log("Superwall subscription status changed:", status);
 
-    // Keep in sync on any purchase/restore/cancellation
-    const onUpdate = (info: CustomerInfo) => {
-      setCustomerInfo(info);
-      setIsEntitlementLoading(false);
-    };
-    // Some versions return an unsubscribe function; others require explicit remove.
-    const maybeUnsubscribe = Purchases.addCustomerInfoUpdateListener(
-      onUpdate
-    ) as (() => void) | void;
-
-    return () => {
-      if (typeof maybeUnsubscribe === "function") {
-        maybeUnsubscribe();
+      // If status changed to ACTIVE, payment was successful
+      if (status.status === "ACTIVE") {
+        try {
+          posthog.capture("Payment successful");
+        } catch (e) {
+          console.error("Failed to capture posthog event:", e);
+        }
+        // Navigation is handled in the Paywall component via useEffect
       }
-      // If your version exposes a remove API, you could instead:
-      // Purchases.removeCustomerInfoUpdateListener?.(onUpdate);
-    };
-  }, []);
 
-  // Helper to fetch current entitlements on demand
-  const refreshEntitlements = useCallback(async () => {
-    try {
-      setIsEntitlementLoading(true);
-      const info = await Purchases.getCustomerInfo();
-      setCustomerInfo(info);
-    } catch (err) {
-      console.warn("Failed to fetch RevenueCat customer info", err);
-    } finally {
-      setIsEntitlementLoading(false);
-    }
-  }, []);
+      // Ensure we have the latest data
+      await refresh();
+    },
+  });
+
+  const hasEntitlement = subscriptionStatus?.status === "ACTIVE";
+  const isEntitlementLoading =
+    subscriptionStatus?.status === "UNKNOWN" ||
+    subscriptionStatus === undefined;
+
+  // Debug: Log subscription status changes
+  useEffect(() => {
+    console.log("=== Auth State Debug ===");
+    console.log("user:", user?.id ?? "null");
+    console.log("subscriptionStatus:", subscriptionStatus?.status);
+    console.log("hasEntitlement:", hasEntitlement);
+    console.log("isEntitlementLoading:", isEntitlementLoading);
+    console.log("========================");
+  }, [subscriptionStatus, user, hasEntitlement, isEntitlementLoading]);
 
   // ----- Supabase session boot + listener -----
   useEffect(() => {
@@ -103,88 +110,115 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Link/unlink RevenueCat identity whenever the app user changes
+  // Link/unlink Superwall identity whenever the app user changes
   useEffect(() => {
     (async () => {
       try {
         if (user?.id) {
-          console.log("Logging in");
-          await Purchases.logIn(user.id);
-        } else {
+          console.log("Identifying with Superwall:", user.id);
+          await identify(user.id);
+
+          // Trigger refresh - Superwall will sync with StoreKit and
+          // automatically fire onSubscriptionStatusChange when ready
+          console.log("Triggering refresh to sync with StoreKit...");
+          await refresh();
+          // Don't manually set subscription status here - let Superwall handle it
+          // The subscriptionStatus hook will update when Superwall fires the event
         }
       } catch (err) {
-        console.warn("RevenueCat logIn/logOut failed", err);
-      } finally {
-        // Always refresh after identity change
-        await refreshEntitlements();
+        console.warn("Superwall identify failed", err);
       }
     })();
-  }, [user?.id, refreshEntitlements]);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      // console.log("--AUTH--", user, customerInfo, hasEntitlement);
-      // console.log("--AUTH--");
-      // console.log("Has user, ", !!user);
-      // console.log("Customer info", customerInfo);
-      // console.log("hasEntitlement", hasEntitlement);
-    }, 5000);
-    return () => clearInterval(id);
-  }, [user, customerInfo, hasEntitlement]);
+  }, [user?.id, identify, refresh]);
 
   // ----- Auth actions -----
   const logout = async () => {
+    console.log("Logging out...");
+
+    // First, reset Superwall's subscription status to INACTIVE
+    // This clears the cached subscription status before signOut
+    await setSubscriptionStatus({ status: "INACTIVE" });
+    console.log("Set subscription status to INACTIVE");
+
+    // Sign out from Superwall (clears user identity and cached data)
+    await signOut();
+    console.log("Signed out from Superwall");
+
+    // Sign out from Supabase
     const { error } = await supabase.auth.signOut();
-    await Purchases.logOut();
-    posthog.reset();
     if (error) throw error;
+    console.log("Signed out from Supabase");
+
+    // Reset PostHog
+    posthog.reset();
+    console.log("Logout complete");
   };
 
   const signInApple = async () => {
-    const cred = await AppleAuthentication.signInAsync({
-      requestedScopes: [
-        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-        AppleAuthentication.AppleAuthenticationScope.EMAIL,
-      ],
-    });
+    setIsSigningIn(true); // Start signing in - prevents premature redirects
 
-    if (!cred.identityToken) throw new Error("No identityToken.");
+    try {
+      const cred = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
 
-    const { data, error } = await supabase.auth.signInWithIdToken({
-      provider: "apple",
-      token: cred.identityToken,
-    });
-    if (error) throw error;
-    const id = await data.user.id;
-    posthog.identify(id, { email: data.user.email ?? "" });
-    await Purchases.logIn(id);
-    await refreshEntitlements();
+      if (!cred.identityToken) throw new Error("No identityToken.");
+
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: "apple",
+        token: cred.identityToken,
+      });
+      if (error) throw error;
+      const id = await data.user.id;
+      posthog.identify(id, { email: data.user.email ?? "" });
+
+      // Identify with Superwall
+      await identify(id);
+
+      // Trigger refresh - Superwall will sync with StoreKit and
+      // automatically update subscriptionStatus when ready
+      console.log("Triggering refresh to sync with StoreKit after sign in...");
+      await refresh();
+      // Don't manually set subscription status - let Superwall handle it
+      // The subscriptionStatus hook will update when Superwall fires the event
+    } finally {
+      setIsSigningIn(false); // Done signing in
+    }
   };
 
   // ----- Memoized context value -----
   const value = useMemo<AuthContextType>(
     () => ({
       isAuthenticated: !!user,
-      isLoading,
+      isLoading: isLoading || isSigningIn, // Include signing in as loading state
       user,
       logout,
       signInApple,
 
       hasEntitlement,
       isEntitlementLoading,
-      refreshEntitlements,
-
-      customerInfo,
+      // Superwall handles refreshing automatically, but we can expose a no-op or actual refresh if available
+      refreshEntitlements: async () => {
+        try {
+          await refresh();
+        } catch (e) {
+          console.warn("Failed to refresh Superwall user", e);
+        }
+      },
+      refresh, // Expose refresh directly
     }),
     [
       user,
       isLoading,
+      isSigningIn,
       hasEntitlement,
       isEntitlementLoading,
-      customerInfo,
       logout,
       signInApple,
-      refreshEntitlements,
+      refresh, // Add refresh to dependency array
     ]
   );
 

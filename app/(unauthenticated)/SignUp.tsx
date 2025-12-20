@@ -12,10 +12,18 @@ import { useAuth } from "~/contexts/AuthProvider";
 import GradientText from "~/components/GradientText";
 
 export default function SignUp() {
-  const { signInApple } = useAuth();
+  const { signInApple, hasEntitlement } = useAuth();
   const handleLogin = async () => {
     try {
       await signInApple();
+
+      // After sign-in completes:
+      // - If user has entitlement, Stack.Protected will show authenticated routes
+      // - If user has NO entitlement, navigate to onboarding
+      // We need to check hasEntitlement AFTER signInApple completes
+      // But hasEntitlement here is stale (from before sign-in)
+      // So we just navigate to onboarding - if they have entitlement,
+      // the layout will redirect them to authenticated anyway
       router.replace("/onboarding/onboarding");
     } catch (err) {
       showErrorToast("Error Signing in");

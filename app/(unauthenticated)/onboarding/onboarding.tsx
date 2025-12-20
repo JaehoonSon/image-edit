@@ -1,12 +1,14 @@
 import { router } from "expo-router";
 import { Bold, InfoIcon } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { Image, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
 import Animated, {
   FadeInDown,
   FadeInLeft,
+  FadeInRight,
   FadeInUp,
   FadeOutDown,
+  FadeOutRight,
   Layout,
   LayoutAnimationConfig,
   SlideInLeft,
@@ -162,46 +164,92 @@ const AgeStep = ({ onAnswer, currentAnswer }) => (
 
 const AestheticStep = ({ onAnswer, currentAnswer = [] }) => {
   const toggle = (val) => {
+    playHaptic("selection");
     onAnswer((prev = []) =>
       prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]
     );
   };
   const isSelected = (val) => currentAnswer?.includes?.(val);
+
+  const aestheticOptions = [
+    { value: "minimalist", label: "Minimalist", emoji: "✨", color: "#E5E7EB" },
+    { value: "vibrant", label: "Vibrant", emoji: "🌈", color: "#FBBF24" },
+    { value: "moody", label: "Moody", emoji: "🌙", color: "#6366F1" },
+    {
+      value: "sophisticated",
+      label: "Sophisticated",
+      emoji: "💎",
+      color: "#EC4899",
+    },
+  ];
+
   return (
     <View className="mx-auto w-[90%] gap-y-4">
       <View className="gap-y-4">
-        <H3>What kind of look you're going for?</H3>
+        <H2>What kind of look are you going for?</H2>
         <P>We'll edit photos the way you like</P>
       </View>
       <View className="gap-y-4">
-        <Button
-          variant={isSelected("minimalist") ? "default" : "secondary"}
-          size="xl"
-          onPress={() => toggle("minimalist")}
-        >
-          <Text>Minimalist</Text>
-        </Button>
-        <Button
-          variant={isSelected("vibrant") ? "default" : "secondary"}
-          size="xl"
-          onPress={() => toggle("vibrant")}
-        >
-          <Text>Vibrant</Text>
-        </Button>
-        <Button
-          variant={isSelected("moody") ? "default" : "secondary"}
-          size="xl"
-          onPress={() => toggle("moody")}
-        >
-          <Text>Moody</Text>
-        </Button>
-        <Button
-          variant={isSelected("sophisticated") ? "default" : "secondary"}
-          size="xl"
-          onPress={() => toggle("sophisticated")}
-        >
-          <Text>Sophisticated</Text>
-        </Button>
+        {aestheticOptions.map((option, index) => (
+          <Animated.View
+            key={option.value}
+            entering={FadeInDown.duration(400).delay(index * 100)}
+          >
+            <Pressable
+              onPress={() => toggle(option.value)}
+              className={`
+                rounded-2xl p-6 border-2
+                ${
+                  isSelected(option.value)
+                    ? "bg-primary/10 border-primary"
+                    : "bg-card border-border"
+                }
+              `}
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.7 : 1,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+              })}
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center gap-x-4">
+                  <View
+                    className="w-14 h-14 rounded-full items-center justify-center"
+                    style={{
+                      backgroundColor: isSelected(option.value)
+                        ? option.color + "40"
+                        : option.color + "20",
+                    }}
+                  >
+                    <Text className="text-3xl">{option.emoji}</Text>
+                  </View>
+                  <View>
+                    <Text
+                      className={`text-xl font-bold ${
+                        isSelected(option.value)
+                          ? "text-primary"
+                          : "text-foreground"
+                      }`}
+                    >
+                      {option.label}
+                    </Text>
+                  </View>
+                </View>
+                {isSelected(option.value) && (
+                  <Animated.View
+                    entering={FadeInRight.duration(200)}
+                    exiting={FadeOutDown.duration(200)}
+                  >
+                    <View className="w-7 h-7 rounded-full bg-primary items-center justify-center">
+                      <Text className="text-primary-foreground font-bold">
+                        ✓
+                      </Text>
+                    </View>
+                  </Animated.View>
+                )}
+              </View>
+            </Pressable>
+          </Animated.View>
+        ))}
       </View>
     </View>
   );

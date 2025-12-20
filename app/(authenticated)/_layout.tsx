@@ -1,42 +1,35 @@
 import { Text } from "react-native";
-import { Redirect, Stack, Tabs } from "expo-router";
+import { Redirect, Stack } from "expo-router";
 import { useAuth } from "~/contexts/AuthProvider";
-import { ThemeToggle } from "~/components/ThemeToggle";
 import LoadingScreen from "../Loading";
 
 export default function AuthenticatedLayout() {
-  const { isAuthenticated, isLoading, hasEntitlement, isEntitlementLoading } =
+  const { isAuthenticated, hasEntitlement, isLoading, isEntitlementLoading } =
     useAuth();
 
-  // You can keep the splash screen open, or render a loading screen like we do here.
+  // Show loading screen while auth or entitlement status is being determined
   if (isLoading || isEntitlementLoading) {
-    // return <Text>Loading...</Text>;
     return <LoadingScreen />;
   }
 
-  // Only require authentication within the (app) group's layout as users
-  // need to be able to access the (auth) group and sign in again.
+  // Double-check: If user somehow got here without auth+entitlement, redirect away
+  // This is a safety net in case Stack.Protected doesn't catch it
   if (!isAuthenticated || !hasEntitlement) {
-    // On web, static rendering will stop here as the user is not authenticated
-    // in the headless Node process that the pages are rendered in.
-    return <Redirect href="/(unauthenticated)" />;
+    console.log(
+      "Authenticated layout: User should not be here, redirecting..."
+    );
+    console.log(
+      "isAuthenticated:",
+      isAuthenticated,
+      "hasEntitlement:",
+      hasEntitlement
+    );
+    return <Redirect href="/" />;
   }
 
-  // This layout can be deferred because it's not the root layout.
   return (
-    // <Stack />
-    // <Tabs>
-    //   <Tabs.Screen name="index" />
-    //   <Tabs.Screen name="Stats" />
-    //   <Tabs.Screen name="Todo" />
-    //   <Tabs.Screen
-    //     name="settings"
-    //     options={{ headerRight: () => <ThemeToggle /> }}
-    //   />
-    //   <Tabs.Screen name="MainApp" options={{ href: null }} />
-    // </Tabs>
     <Stack screenOptions={{ headerShown: false, animation: "default" }}>
-      <Tabs.Screen name="index" options={{ animation: "none" }} />
+      <Stack.Screen name="index" options={{ animation: "none" }} />
     </Stack>
   );
 }
