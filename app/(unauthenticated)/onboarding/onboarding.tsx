@@ -1,34 +1,22 @@
 import { router } from "expo-router";
-import { Bold, InfoIcon } from "lucide-react-native";
+import { InfoIcon, Check } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { Image, Pressable, View } from "react-native";
 import Animated, {
   FadeInDown,
   FadeInLeft,
   FadeInRight,
-  FadeInUp,
   FadeOutDown,
   FadeOutRight,
   Layout,
-  LayoutAnimationConfig,
   SlideInLeft,
   SlideInRight,
-  SlideOutLeft,
-  SlideOutRight,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "~/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "~/components/ui/card";
 import { CountUp } from "~/components/ui/count-up";
 import { Text } from "~/components/ui/text";
-import { Toggle, ToggleIcon } from "~/components/ui/toggle";
-import { TypeWriter } from "~/components/ui/type-writer";
-import { H1, H2, H3, Muted, P } from "~/components/ui/typography";
+import { H1, H2, P } from "~/components/ui/typography";
 import { playHaptic } from "~/lib/hapticSound";
 import { posthog } from "~/lib/posthog";
 import HeroScreen from "./Hero";
@@ -199,10 +187,9 @@ const AestheticStep = ({ onAnswer, currentAnswer = [] }) => {
               onPress={() => toggle(option.value)}
               className={`
                 rounded-2xl p-6 border-2
-                ${
-                  isSelected(option.value)
-                    ? "bg-primary/10 border-primary"
-                    : "bg-card border-border"
+                ${isSelected(option.value)
+                  ? "bg-primary/10 border-primary"
+                  : "bg-card border-border"
                 }
               `}
               style={({ pressed }) => ({
@@ -224,11 +211,10 @@ const AestheticStep = ({ onAnswer, currentAnswer = [] }) => {
                   </View>
                   <View>
                     <Text
-                      className={`text-xl font-bold ${
-                        isSelected(option.value)
-                          ? "text-primary"
-                          : "text-foreground"
-                      }`}
+                      className={`text-xl font-bold ${isSelected(option.value)
+                        ? "text-primary"
+                        : "text-foreground"
+                        }`}
                     >
                       {option.label}
                     </Text>
@@ -334,61 +320,56 @@ const EVIDENCE_MESSAGE = {
 };
 
 const Evidence = ({ allAnswers, currentIndex }) => {
-  const platform_picked = allAnswers["platform"];
-  return (
-    <View className="flex-1 mx-auto w-[90%] gap-y-4">
-      <View className="gap-y-1">
-        <H1 className="border-0">Congratulations! 🥳🎊</H1>
-        <H2 className="border-0">{EVIDENCE_MESSAGE[platform_picked].header}</H2>
-      </View>
-      <View className="flex flex-col snap-center">
-        <LayoutAnimationConfig>
-          <Animated.View
-            key={"1"}
-            entering={FadeInDown.duration(700)}
-            className="items-center mb-3"
-          >
-            <Card className="w-full shadow-none">
-              <CardHeader>
-                <View className="flex flex-row items-center">
-                  <View className="h-16 w-16 bg-white rounded-full overflow-hidden">
-                    <Image
-                      source={require("~/assets/images/icon.png")}
-                      className="w-16 h-16"
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <Text className="flex-1 ml-3 font-semibold">
-                    {EVIDENCE_MESSAGE[platform_picked].text1}
-                  </Text>
-                </View>
-              </CardHeader>
-            </Card>
-          </Animated.View>
+  const platform_picked = allAnswers["platform"] || "other";
+  const data = EVIDENCE_MESSAGE[platform_picked] || EVIDENCE_MESSAGE.other;
 
-          <Animated.View
-            key={"2"}
-            entering={FadeInDown.duration(900)}
-            className="items-center"
-          >
-            <Card className="w-full shadow-none">
-              <CardHeader>
-                <View className="flex flex-row items-center">
-                  <View className="h-16 w-16 bg-white rounded-full overflow-hidden">
-                    <Image
-                      source={EVIDENCE_MESSAGE[platform_picked].icon}
-                      className="w-16 h-16"
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <Text className="flex-1 ml-3 font-semibold">
-                    {EVIDENCE_MESSAGE[platform_picked].text2}
-                  </Text>
-                </View>
-              </CardHeader>
-            </Card>
-          </Animated.View>
-        </LayoutAnimationConfig>
+  return (
+    <View className="flex-1 items-center justify-center w-[90%] mx-auto">
+      <Animated.View
+        entering={FadeInDown.duration(700).springify()}
+        className="items-center mb-8 gap-y-2"
+      >
+        <H1 className="text-center text-4xl border-0 font-bold">Perfect Match! 🎉</H1>
+        <P className="text-center text-lg text-muted-foreground w-full px-4">
+          {data.header}
+        </P>
+      </Animated.View>
+
+      <Animated.View
+        entering={FadeInDown.delay(200).duration(700).springify()}
+        className="mb-10 w-full items-center"
+      >
+        <View className="w-40 h-40 bg-card rounded-[40px] items-center justify-center shadow-2xl border-2 border-border/50">
+          <Image
+            source={data.icon}
+            className="w-24 h-24"
+            resizeMode="contain"
+          />
+        </View>
+      </Animated.View>
+
+      <View className="w-full gap-y-4">
+        <Animated.View entering={FadeInDown.delay(400).duration(600).springify()}>
+          <View className="flex-row items-center bg-secondary/40 p-5 rounded-3xl border border-secondary/50">
+            <View className="w-12 h-12 rounded-full bg-background items-center justify-center mr-4 shadow-sm">
+              <Check size={24} color="#000" strokeWidth={3} />
+            </View>
+            <Text className="flex-1 font-medium text-foreground text-base leading-tight">
+              {data.text1}
+            </Text>
+          </View>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(550).duration(600).springify()}>
+          <View className="flex-row items-center bg-secondary/40 p-5 rounded-3xl border border-secondary/50">
+            <View className="w-12 h-12 rounded-full bg-background items-center justify-center mr-4 shadow-sm">
+              <InfoIcon size={24} color="#000" strokeWidth={2.5} />
+            </View>
+            <Text className="flex-1 font-medium text-foreground text-base leading-tight">
+              {data.text2}
+            </Text>
+          </View>
+        </Animated.View>
       </View>
     </View>
   );
@@ -425,7 +406,7 @@ const stepConfig = [
     component: HeroScreen,
     autoAdvance: false,
     nextButton: true,
-    backButton: true,
+    backButton: false,
   },
   {
     key: "social",
@@ -529,7 +510,7 @@ export default function OnboardingScreen() {
       console.log("Capturing", eventName);
       posthog.capture(eventName, { step: currentStep });
       captured.add(eventName);
-    } catch {}
+    } catch { }
   }, [currentStep, stepConfig, captured]);
 
   const handleAnswer = (answerOrUpdater) => {
