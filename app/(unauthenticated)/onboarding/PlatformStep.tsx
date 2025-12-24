@@ -1,15 +1,24 @@
 import React from "react";
-import { View, Image, Pressable } from "react-native";
+import { View, Image, Pressable, ImageSourcePropType } from "react-native";
 import Animated, {
   FadeInDown,
-  withTiming,
   useAnimatedStyle,
+  withSpring,
 } from "react-native-reanimated";
-import { H2, P, Muted } from "~/components/ui/typography";
+import { H2, P } from "~/components/ui/typography";
 import { Check } from "lucide-react-native";
 import { Text } from "~/components/ui/text";
+import { playHaptic } from "~/lib/hapticSound";
 
-const PLATFORMS = [
+interface PlatformOption {
+  id: string;
+  label: string;
+  icon: ImageSourcePropType;
+  color: string;
+  tip: string;
+}
+
+const PLATFORMS: PlatformOption[] = [
   {
     id: "instagram",
     label: "Instagram",
@@ -21,7 +30,7 @@ const PLATFORMS = [
     id: "tiktok",
     label: "TikTok",
     icon: require("~/assets/icons/tiktok.png"),
-    color: "#25F4EE",
+    color: "#000000",
     tip: "1080×1920 video",
   },
   {
@@ -40,63 +49,105 @@ const PLATFORMS = [
   },
 ];
 
-const Tile = ({ platform, selected, onPress, index }) => {
+interface TileProps {
+  platform: PlatformOption;
+  selected: boolean;
+  onPress: () => void;
+  index: number;
+}
+
+const Tile = ({ platform, selected, onPress, index }: TileProps) => {
   const aStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: withTiming(selected ? 1.02 : 1, { duration: 120 }) }],
+    transform: [
+      {
+        scale: withSpring(selected ? 1.02 : 1, {
+          mass: 0.5,
+          damping: 12,
+          stiffness: 100,
+        }),
+      },
+    ],
   }));
 
   return (
     <Animated.View
-      entering={FadeInDown.delay(70 * index).duration(500)}
+      entering={FadeInDown.delay(100 * index)
+        .springify()
+        .damping(16)}
       style={aStyle}
-      className="w-[48%]"
+      className="w-[48%] mb-4"
     >
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ selected }}
-        onPress={onPress}
+        onPress={() => {
+          playHaptic("selection");
+          onPress();
+        }}
         className={[
-          "rounded-2xl p-4 border-2",
-          selected ? "bg-primary/10" : "bg-card",
+          "rounded-3xl p-5 border-2 h-48 justify-between",
+          selected
+            ? "bg-primary/5 border-primary shadow-sm"
+            : "bg-card border-border/60",
         ].join(" ")}
-        style={{ borderColor: selected ? platform.color : "#E5E7EB" }}
       >
-        <View className="flex-row items-center justify-between">
+        <View className="flex-row items-start justify-between">
           <View
-            className="h-12 w-12 rounded-full items-center justify-center bg-white border"
-            style={{ borderColor: platform.color }}
+            className={[
+              "h-16 w-16 rounded-2xl items-center justify-center",
+              selected ? "bg-white shadow-sm" : "bg-muted/30",
+            ].join(" ")}
           >
             <Image
               source={platform.icon}
-              className="h-8 w-8"
+              className="h-10 w-10"
               resizeMode="contain"
               accessibilityIgnoresInvertColors
             />
           </View>
-          {selected ? (
-            <View
-              className="h-6 w-6 rounded-full items-center justify-center"
-              style={{ backgroundColor: platform.color }}
+          {selected && (
+            <Animated.View
+              entering={FadeInDown.duration(200)}
+              className="h-6 w-6 rounded-full bg-primary items-center justify-center"
             >
-              <Check size={14} color="white" />
-            </View>
-          ) : null}
+              <Check size={14} color="white" strokeWidth={3} />
+            </Animated.View>
+          )}
         </View>
-        <Text className="mt-3 font-medium">{platform.label}</Text>
-        {/* <Muted>{platform.tip}</Muted> */}
+
+        <View>
+          <Text
+            className={[
+              "text-xl leading-tight font-medium",
+              selected ? "font-bold text-primary" : "text-card-foreground/80",
+            ].join(" ")}
+          >
+            {platform.label}
+          </Text>
+          <Text className="text-xs text-muted-foreground mt-1 opacity-80 font-medium">
+            {platform.tip}
+          </Text>
+        </View>
       </Pressable>
     </Animated.View>
   );
 };
 
-const PlatformStep = ({ onAnswer, currentAnswer }) => (
-  <View className="mx-auto w-[90%] gap-y-5">
-    <View className="gap-y-2">
-      <H2>Where do you post the most?</H2>
-      <P>Pick your playground.</P>
+interface PlatformStepProps {
+  onAnswer: (answer: string) => void;
+  currentAnswer: string;
+}
+
+const PlatformStep = ({ onAnswer, currentAnswer }: PlatformStepProps) => (
+  <View className="flex-1 w-[90%] mx-auto">
+    <View className="gap-y-3 mb-8">
+      <H2 className="text-3xl">Where do you post the most?</H2>
+      <P className="text-muted-foreground text-lg">
+        We'll optimize your photos for your favorite platform.
+      </P>
     </View>
 
-    <View className="flex-row flex-wrap justify-between gap-y-4">
+    <View className="flex-row flex-wrap justify-between">
       {PLATFORMS.map((pf, idx) => (
         <Tile
           key={pf.id}

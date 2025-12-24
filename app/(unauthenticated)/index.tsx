@@ -1,30 +1,20 @@
-import { Link, router } from "expo-router";
-import {
-  Dimensions,
-  FlatList,
-  Image,
-  useWindowDimensions,
-  View,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
-  Pressable,
-} from "react-native";
+import { router } from "expo-router";
+import { View, useWindowDimensions, StyleSheet, TouchableOpacity } from "react-native";
 import { Button } from "~/components/ui/button";
 import { Text } from "~/components/ui/text";
-import { H1, P } from "~/components/ui/typography";
+import { P } from "~/components/ui/typography";
 import { LinearGradient } from "expo-linear-gradient";
-import { onboardingSlide } from "~/config";
-import { useRef, useState, useEffect } from "react";
 import { VideoView, useVideoPlayer } from "expo-video";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import GradientText from "~/components/GradientText";
+import Animated, { FadeInUp } from "react-native-reanimated";
 
 export default function IndexUnauthenticatedScreen() {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const player = useVideoPlayer(
-    require("~/assets/onboarding/hero.mp4"),
+    require("~/assets/onboarding/om.mp4"),
     (player) => {
       player.loop = true;
       player.play();
@@ -33,47 +23,75 @@ export default function IndexUnauthenticatedScreen() {
   );
 
   return (
-    <View className="flex-1 bg-[#F9EDD9] items-center justify-center">
-      {/* Footer — its own height decides how much the gradient gets */}
-      <GradientText text="Elysia - Photo Glow" fontSize={38}></GradientText>
-      <View className="bg-transparent w-full gap-y-2 pt-6 pb-12">
-        <View className="w-[90%] mx-auto rounded-full">
-          <VideoView
-            style={{
-              width: width * 0.9,
-              height: height * 0.4,
-              alignSelf: "center",
-              marginBottom: 20,
-            }}
-            player={player}
-            allowsFullscreen={false}
-            allowsPictureInPicture={false}
-            nativeControls={false}
-            focusable={false}
-          />
-          <Button
-            variant="default"
-            className="shadow shadow-foreground/5 rounded-full"
-            size="xl"
-            onPress={() => {
-              router.push("/(unauthenticated)/SignUp");
-            }}
+    <View className="flex-1 bg-white">
+      {/* Full-bleed Hero Video */}
+      <VideoView
+        style={StyleSheet.absoluteFillObject}
+        player={player}
+        allowsFullscreen={false}
+        allowsPictureInPicture={false}
+        nativeControls={false}
+        focusable={false}
+        contentFit="cover"
+      />
+
+      {/* Smooth gradient fade - compact and solid at bottom */}
+      <LinearGradient
+        colors={[
+          "transparent",
+          "rgba(255,255,255,0.15)",
+          "rgba(255,255,255,0.4)",
+          "rgba(255,255,255,0.75)",
+          "rgba(255,255,255,0.95)",
+          "#ffffff",
+        ]}
+        locations={[0, 0.1, 0.2, 0.35, 0.45, 0.6]}
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: height * 0.35,
+        }}
+      />
+
+      {/* Bottom content area - compact like reference */}
+      <View
+        className="absolute left-0 right-0 bottom-0 px-6"
+        style={{ paddingBottom: insets.bottom + 4 }}
+      >
+        {/* Title section */}
+        <Animated.View entering={FadeInUp.delay(200).duration(600)} className="items-center mb-1">
+          <Text className="text-4xl font-semibold text-black">Welcome to</Text>
+          <GradientText text="Elysia" fontSize={48} />
+          <P className="text-black/60 text-center text-sm mt-1">
+            Highlight your natural beauty
+          </P>
+        </Animated.View>
+
+        {/* CTA Button - dark like reference */}
+        <Animated.View entering={FadeInUp.delay(400).duration(600)} className="mt-4">
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push("/(unauthenticated)/SignUp")}
+            className="rounded-full py-4 items-center"
+            style={{ backgroundColor: '#D946EF' }}
           >
-            <Text className="font-bold tracking-widest">Let's Start</Text>
-          </Button>
-          <Button
-            variant="link"
-            className="mt-2"
-            onPress={() => {
-              router.push("/(unauthenticated)/login");
-              // router.push("/(unauthenticated)/onboarding/onboarding");
-            }}
-          >
-            <P className="text-primary text-center text-lg">
-              I already have an account
-            </P>
-          </Button>
-        </View>
+            <Text className="text-white font-semibold text-lg">
+              Get Started
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Footer links like reference */}
+        <Animated.View entering={FadeInUp.delay(500).duration(600)} className="mt-3 items-center">
+          <Text className="text-xs text-black/50 text-center">
+            By continuing, you agree to our{" "}
+            <Text className="text-xs text-black/70 underline font-medium">Privacy Policy</Text>
+            {" "}and{" "}
+            <Text className="text-xs text-black/70 underline font-medium">Terms of Service</Text>
+          </Text>
+        </Animated.View>
       </View>
     </View>
   );
