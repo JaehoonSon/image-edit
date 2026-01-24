@@ -15,6 +15,7 @@ import {
   View,
   Text,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { NAV_THEME } from "~/lib/constants";
 import { useColorScheme } from "~/lib/useColorScheme";
@@ -106,7 +107,8 @@ export default function RootLayout() {
       // }}
     >
       <SuperwallLoading>
-        <ActivityIndicator style={{ flex: 1 }} />
+        {/* Don't show anything while loading, and rely on app.json's splash screen */}
+        <View />
       </SuperwallLoading>
 
       <GestureHandlerRootView style={{ flex: 1 }}>

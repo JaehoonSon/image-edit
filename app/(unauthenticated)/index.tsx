@@ -1,5 +1,10 @@
-import { router } from "expo-router";
-import { View, useWindowDimensions, StyleSheet, TouchableOpacity } from "react-native";
+import { Link, router } from "expo-router";
+import {
+  View,
+  useWindowDimensions,
+  StyleSheet,
+  TouchableOpacity,
+} from "react-native";
 import { Button } from "~/components/ui/button";
 import { Text } from "~/components/ui/text";
 import { P } from "~/components/ui/typography";
@@ -8,6 +13,7 @@ import { VideoView, useVideoPlayer } from "expo-video";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import GradientText from "~/components/GradientText";
 import Animated, { FadeInUp } from "react-native-reanimated";
+import { appMetadata } from "~/config";
 
 export default function IndexUnauthenticatedScreen() {
   const { width, height } = useWindowDimensions();
@@ -61,7 +67,10 @@ export default function IndexUnauthenticatedScreen() {
         style={{ paddingBottom: insets.bottom + 4 }}
       >
         {/* Title section */}
-        <Animated.View entering={FadeInUp.delay(200).duration(600)} className="items-center mb-1">
+        <Animated.View
+          entering={FadeInUp.delay(200).duration(600)}
+          className="items-center mb-1"
+        >
           <Text className="text-4xl font-semibold text-black">Welcome to</Text>
           <GradientText text="Elysia" fontSize={48} />
           <P className="text-black/60 text-center text-sm mt-1">
@@ -70,12 +79,15 @@ export default function IndexUnauthenticatedScreen() {
         </Animated.View>
 
         {/* CTA Button - dark like reference */}
-        <Animated.View entering={FadeInUp.delay(400).duration(600)} className="mt-4">
+        <Animated.View
+          entering={FadeInUp.delay(400).duration(600)}
+          className="mt-4"
+        >
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => router.push("/(unauthenticated)/SignUp")}
             className="rounded-full py-4 items-center"
-            style={{ backgroundColor: '#D946EF' }}
+            style={{ backgroundColor: "#D946EF" }}
           >
             <Text className="text-white font-semibold text-lg">
               Get Started
@@ -84,12 +96,23 @@ export default function IndexUnauthenticatedScreen() {
         </Animated.View>
 
         {/* Footer links like reference */}
-        <Animated.View entering={FadeInUp.delay(500).duration(600)} className="mt-3 items-center">
+        <Animated.View
+          entering={FadeInUp.delay(500).duration(600)}
+          className="mt-3 items-center"
+        >
           <Text className="text-xs text-black/50 text-center">
             By continuing, you agree to our{" "}
-            <Text className="text-xs text-black/70 underline font-medium">Privacy Policy</Text>
-            {" "}and{" "}
-            <Text className="text-xs text-black/70 underline font-medium">Terms of Service</Text>
+            <Link href={appMetadata.privacyPolicyUrl}>
+              <Text className="text-xs text-black/70 underline font-medium">
+                Privacy Policy
+              </Text>
+            </Link>{" "}
+            and{" "}
+            <Link href={appMetadata.endUserLicenseAgreementUrl}>
+              <Text className="text-xs text-black/70 underline font-medium">
+                Terms of Service
+              </Text>
+            </Link>
           </Text>
         </Animated.View>
       </View>
